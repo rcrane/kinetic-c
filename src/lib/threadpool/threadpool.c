@@ -284,6 +284,9 @@ static bool spawn(struct threadpool *t) {
     } else {
         assert(false);
     }                    
+    /* For some reason gcc's control-flow thinks we could reach here. */
+    assert(false);
+    return false;
 }
 
 static void *thread_task(void *arg) {

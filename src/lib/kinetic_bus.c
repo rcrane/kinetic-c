@@ -153,6 +153,10 @@ STATIC bus_sink_cb_res_t sink_cb(uint8_t *read_buf,
     default:
         KINETIC_ASSERT(false);
     }
+    /* For some reason gcc's control-flow thinks we could reach here. */
+    KINETIC_ASSERT(false);
+    bus_sink_cb_res_t tmp;
+    return tmp;
 }
 
 static void log_response_seq_id(int fd, int64_t seq_id) {

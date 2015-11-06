@@ -480,7 +480,7 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
             info->id, (void *)box, result->status);
     }
 
-    bus_unpack_cb_res_t unpacked_result;
+    bus_unpack_cb_res_t unpacked_result = {0, };
     switch (info->state) {
     case RIS_EXPECT:
         BUS_ASSERT(b, b->udata, info->u.expect.has_result);
