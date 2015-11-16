@@ -83,7 +83,7 @@ struct boxed_msg;
         { \
             BUS_LOG_SNPRINTF(B, 0, LOG_ASSERT, UDATA, 128, \
                 "BUS FAILURE at %s:%d in %s: assert(" #COND ")", \
-                __FILE__, (int)__LINE__, __FUNCTION__); \
+                __FILE__, (int)__LINE__, __func__); \
             assert(COND); \
         } \
     } while(0)

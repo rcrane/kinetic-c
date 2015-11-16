@@ -35,11 +35,6 @@
 #define KINETIC_CONNECTION_TIMEOUT_SECS (30) /* Java simulator may take longer than 10 seconds to respond */
 #define KINETIC_OPERATION_TIMEOUT_SECS (20)
 
-// Ensure __func__ is defined (for debugging)
-#if !defined __func__
-#define __func__ __FUNCTION__
-#endif
-
 // Expose normally private data for test builds to allow inspection
 #ifdef TEST
 #define STATIC

@@ -60,7 +60,7 @@ int KineticLogger_ByteArraySliceToCString(char* p_buf, const ByteArray bytes, co
         if(!(cond)) \
         { \
             LOGF0("ASSERT FAILURE at %s:%d in %s: assert(" #cond ")", \
-            __FILE__, (int)__LINE__, __FUNCTION__); \
+            __FILE__, (int)__LINE__, __func__); \
             assert(cond); \
         } \
     }
