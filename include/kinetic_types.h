@@ -1,22 +1,19 @@
-/*
-* kinetic-c
-* Copyright (C) 2015 Seagate Technology.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-*/
+/**
+ * Copyright 2013-2015 Seagate Technology LLC.
+ *
+ * This Source Code Form is subject to the terms of the Mozilla
+ * Public License, v. 2.0. If a copy of the MPL was not
+ * distributed with this file, You can obtain one at
+ * https://mozilla.org/MP:/2.0/.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but is provided AS-IS, WITHOUT ANY WARRANTY; including without
+ * the implied warranty of MERCHANTABILITY, NON-INFRINGEMENT or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the Mozilla Public
+ * License for more details.
+ *
+ * See www.openkinetic.org for more project information
+ */
 
 #ifndef _KINETIC_TYPES_H
 #define _KINETIC_TYPES_H
@@ -37,7 +34,7 @@
 
 
 #define KINETIC_SOCKET_INVALID  (-1)                    ///< Invalid socket file descriptor value
-#define KINETIC_PORT            (8123)                  ///< Default kinetic port 
+#define KINETIC_PORT            (8123)                  ///< Default kinetic port
 #define KINETIC_TLS_PORT        (8443)                  ///< Default kinetic TLS port
 #define KINETIC_HMAC_SHA1_LEN   (SHA_DIGEST_LENGTH)     ///< HMAC secure hash length
 #define KINETIC_HMAC_MAX_LEN    (KINETIC_HMAC_SHA1_LEN) ///< HMAC max length
@@ -96,8 +93,8 @@ typedef enum _KineticSynchronization {
     /// or when a subsequent FLUSH is sent to the drive.
     KINETIC_SYNCHRONIZATION_WRITEBACK = 2,
 
-    /// All pending information that has not been written is 
-    /// pushed to the disk and the command that specifies 
+    /// All pending information that has not been written is
+    /// pushed to the disk and the command that specifies
     /// FLUSH is written last and then returned. All WRITEBACK writes
     /// that have received ending status will be guaranteed to be
     /// written before the FLUSH operation is returned completed.
@@ -193,9 +190,9 @@ typedef enum {
 
 /**
  * @brief Provides a string representation for a KineticStatus code.
- * 
+ *
  * @param status    The status enumeration value.
- * 
+ *
  * @return          Pointer to the appropriate string representation for the specified status.
  */
 const char* Kinetic_GetStatusDescription(KineticStatus status);
@@ -212,7 +209,7 @@ typedef struct _KineticCompletionData {
 
 /**
  * @brief Operation completion callback function prototype.
- * 
+ *
  * @param kinetic_data  KineticCompletionData provided by kinetic-c.
  * @param client_data   Optional pointer to arbitrary client-supplied data.
  */
@@ -233,7 +230,7 @@ typedef struct _KineticCompletionClosure {
  * The ByteBuffer attributes must be allocated and freed by the client, if used.
  */
 typedef struct _KineticEntry {
-    ByteBuffer key;             ///< Key associated with the object stored on disk 
+    ByteBuffer key;             ///< Key associated with the object stored on disk
     ByteBuffer value;           ///< Value data associated with the key
 
     // Metadata
@@ -251,7 +248,7 @@ typedef struct _KineticEntry {
 
 /**
  * @brief Kinetic Key Range request structure
- */ 
+ */
 typedef struct _KineticKeyRange {
 
     /// Required bytes, the beginning of the requested range
@@ -357,39 +354,39 @@ typedef struct {
  * Log info message types
  */
 typedef enum {
-    KINETIC_MESSAGE_TYPE_INVALID = 0,
-    KINETIC_MESSAGE_TYPE_GET_RESPONSE,              ///< GET_RESPONSE
-    KINETIC_MESSAGE_TYPE_GET,                       ///< GET
-    KINETIC_MESSAGE_TYPE_PUT_RESPONSE,              ///< PUT_RESPONSE
-    KINETIC_MESSAGE_TYPE_PUT,                       ///< PUT
-    KINETIC_MESSAGE_TYPE_DELETE_RESPONSE,           ///< DELETE_RESPONSE
-    KINETIC_MESSAGE_TYPE_DELETE,                    ///< DELETE
-    KINETIC_MESSAGE_TYPE_GETNEXT_RESPONSE,          ///< GETNEXT_RESPONSE
-    KINETIC_MESSAGE_TYPE_GETNEXT,                   ///< GETNEXT
-    KINETIC_MESSAGE_TYPE_GETPREVIOUS_RESPONSE,      ///< GETPREVIOUS_RESPONSE
-    KINETIC_MESSAGE_TYPE_GETPREVIOUS,               ///< GETPREVIOUS
-    KINETIC_MESSAGE_TYPE_GETKEYRANGE_RESPONSE,      ///< GETKEYRANGE_RESPONSE
-    KINETIC_MESSAGE_TYPE_GETKEYRANGE,               ///< GETKEYRANGE
-    KINETIC_MESSAGE_TYPE_GETVERSION_RESPONSE,       ///< GETVERSION_RESPONSE
-    KINETIC_MESSAGE_TYPE_GETVERSION,                ///< GETVERSION
-    KINETIC_MESSAGE_TYPE_SETUP_RESPONSE,            ///< SETUP_RESPONSE
-    KINETIC_MESSAGE_TYPE_SETUP,                     ///< SETUP
-    KINETIC_MESSAGE_TYPE_GETLOG_RESPONSE,           ///< GETLOG_RESPONSE
-    KINETIC_MESSAGE_TYPE_GETLOG,                    ///< GETLOG
-    KINETIC_MESSAGE_TYPE_SECURITY_RESPONSE,         ///< SECURITY_RESPONSE
-    KINETIC_MESSAGE_TYPE_SECURITY,                  ///< SECURITY
-    KINETIC_MESSAGE_TYPE_PEER2PEERPUSH_RESPONSE,    ///< PEER2PEERPUSH_RESPONSE
-    KINETIC_MESSAGE_TYPE_PEER2PEERPUSH,             ///< PEER2PEERPUSH
-    KINETIC_MESSAGE_TYPE_NOOP_RESPONSE,             ///< NOOP_RESPONSE
-    KINETIC_MESSAGE_TYPE_NOOP,                      ///< NOOP
-    KINETIC_MESSAGE_TYPE_FLUSHALLDATA_RESPONSE,     ///< FLUSHALLDATA_RESPONSE
-    KINETIC_MESSAGE_TYPE_FLUSHALLDATA,              ///< FLUSHALLDATA
-    KINETIC_MESSAGE_TYPE_PINOP_RESPONSE,            ///< PINOP_RESPONSE
-    KINETIC_MESSAGE_TYPE_PINOP,                     ///< PINOP
-    KINETIC_MESSAGE_TYPE_MEDIASCAN_RESPONSE,        ///< MEDIASCAN_RESPONSE
-    KINETIC_MESSAGE_TYPE_MEDIASCAN,                 ///< MEDIASCAN
-    KINETIC_MESSAGE_TYPE_MEDIAOPTIMIZE_RESPONSE,    ///< MEDIAOPTIMIZE_RESPONSE
-    KINETIC_MESSAGE_TYPE_MEDIAOPTIMIZE,             ///< MEDIAOPTIMIZE
+    KINETIC_MESSAGE_TYPE_INVALID = -1,
+    KINETIC_MESSAGE_TYPE_GET_RESPONSE = 1,              ///< GET_RESPONSE
+    KINETIC_MESSAGE_TYPE_GET = 2 ,                      ///< GET
+    KINETIC_MESSAGE_TYPE_PUT_RESPONSE = 3,              ///< PUT_RESPONSE
+    KINETIC_MESSAGE_TYPE_PUT = 4,                       ///< PUT
+    KINETIC_MESSAGE_TYPE_DELETE_RESPONSE = 5,           ///< DELETE_RESPONSE
+    KINETIC_MESSAGE_TYPE_DELETE = 6,                    ///< DELETE
+    KINETIC_MESSAGE_TYPE_GETNEXT_RESPONSE = 7,          ///< GETNEXT_RESPONSE
+    KINETIC_MESSAGE_TYPE_GETNEXT = 8,                   ///< GETNEXT
+    KINETIC_MESSAGE_TYPE_GETPREVIOUS_RESPONSE = 9,      ///< GETPREVIOUS_RESPONSE
+    KINETIC_MESSAGE_TYPE_GETPREVIOUS = 10,               ///< GETPREVIOUS
+    KINETIC_MESSAGE_TYPE_GETKEYRANGE_RESPONSE = 11,      ///< GETKEYRANGE_RESPONSE
+    KINETIC_MESSAGE_TYPE_GETKEYRANGE = 12,               ///< GETKEYRANGE
+    KINETIC_MESSAGE_TYPE_GETVERSION_RESPONSE = 15,       ///< GETVERSION_RESPONSE
+    KINETIC_MESSAGE_TYPE_GETVERSION = 16,                ///< GETVERSION
+    KINETIC_MESSAGE_TYPE_SETUP_RESPONSE = 21,            ///< SETUP_RESPONSE
+    KINETIC_MESSAGE_TYPE_SETUP = 22,                     ///< SETUP
+    KINETIC_MESSAGE_TYPE_GETLOG_RESPONSE = 23,           ///< GETLOG_RESPONSE
+    KINETIC_MESSAGE_TYPE_GETLOG = 24,                    ///< GETLOG
+    KINETIC_MESSAGE_TYPE_SECURITY_RESPONSE = 25,         ///< SECURITY_RESPONSE
+    KINETIC_MESSAGE_TYPE_SECURITY = 26,                  ///< SECURITY
+    KINETIC_MESSAGE_TYPE_PEER2PEERPUSH_RESPONSE = 27,    ///< PEER2PEERPUSH_RESPONSE
+    KINETIC_MESSAGE_TYPE_PEER2PEERPUSH = 28,             ///< PEER2PEERPUSH
+    KINETIC_MESSAGE_TYPE_NOOP_RESPONSE = 29,             ///< NOOP_RESPONSE
+    KINETIC_MESSAGE_TYPE_NOOP = 30,                      ///< NOOP
+    KINETIC_MESSAGE_TYPE_FLUSHALLDATA_RESPONSE = 31,     ///< FLUSHALLDATA_RESPONSE
+    KINETIC_MESSAGE_TYPE_FLUSHALLDATA = 32,              ///< FLUSHALLDATA
+    KINETIC_MESSAGE_TYPE_PINOP_RESPONSE = 35,            ///< PINOP_RESPONSE
+    KINETIC_MESSAGE_TYPE_PINOP = 36,                     ///< PINOP
+    KINETIC_MESSAGE_TYPE_MEDIASCAN_RESPONSE = 37,        ///< MEDIASCAN_RESPONSE
+    KINETIC_MESSAGE_TYPE_MEDIASCAN = 38,                 ///< MEDIASCAN
+    KINETIC_MESSAGE_TYPE_MEDIAOPTIMIZE_RESPONSE = 39,    ///< MEDIAOPTIMIZE_RESPONSE
+    KINETIC_MESSAGE_TYPE_MEDIAOPTIMIZE = 40,             ///< MEDIAOPTIMIZE
 } KineticMessageType;
 
 /**
@@ -521,9 +518,9 @@ typedef struct {
 
 /**
  * @brief Provides a string representation for a Kinetic message type.
- * 
+ *
  * @param type  The message type value.
- * 
+ *
  * @return      Pointer to the appropriate string representation for the specified type.
  */
 const char* KineticMessageType_GetName(KineticMessageType type);

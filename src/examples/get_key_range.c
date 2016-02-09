@@ -5,11 +5,11 @@
  * Public License, v. 2.0. If a copy of the MPL was not
  * distributed with this file, You can obtain one at
  * https://mozilla.org/MP:/2.0/.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
- * but is provided AS-IS, WITHOUT ANY WARRANTY; including without 
- * the implied warranty of MERCHANTABILITY, NON-INFRINGEMENT or 
- * FITNESS FOR A PARTICULAR PURPOSE. See the Mozilla Public 
+ * but is provided AS-IS, WITHOUT ANY WARRANTY; including without
+ * the implied warranty of MERCHANTABILITY, NON-INFRINGEMENT or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the Mozilla Public
  * License for more details.
  *
  * See www.openkinetic.org for more project information
@@ -24,6 +24,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <openssl/sha.h>
 
 static bool create_entries(KineticSession * const session, const int count);
 
@@ -31,7 +32,7 @@ int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
-    
+
     // Initialize kinetic-c and configure sessions
     KineticSession* session;
     KineticClientConfig clientConfig = {
@@ -85,7 +86,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "FAILURE: Failed retrieving key range from device!\n");
         return 3;
     }
-    
+
     if (keys.used != 2) {
         fprintf(stderr, "FAILURE: Unexpected number of keys in returned range!\n");
         return 4;
@@ -121,12 +122,20 @@ static bool create_entries(KineticSession * const session, const int count)
 
         ByteBuffer KeyBuffer = ByteBuffer_CreateAndAppendFormattedCString(key_buf, sz, "key_prefix_%02d", i);
         ByteBuffer ValueBuffer = ByteBuffer_CreateAndAppendFormattedCString(value_buf, sz, "val_%02d", i);
-
+        
+        /* Populate tag with SHA1 of value */
+        ByteBuffer put_tag_buf = ByteBuffer_Malloc(20);
+        uint8_t sha1[20];
+        SHA1(ValueBuffer.array.data, ValueBuffer.bytesUsed, &sha1[0]);
+        ByteBuffer_Append(&put_tag_buf, sha1, sizeof(sha1));
+        
         KineticEntry entry = {
             .key = KeyBuffer,
             .value = ValueBuffer,
+            .tag = put_tag_buf,
             .algorithm = KINETIC_ALGORITHM_SHA1,
             .force = true,
+            .synchronization = KINETIC_SYNCHRONIZATION_WRITETHROUGH,
         };
 
         KineticStatus status = KineticClient_Put(session, &entry, NULL);

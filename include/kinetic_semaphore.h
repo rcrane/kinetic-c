@@ -1,22 +1,20 @@
-/*
-* kinetic-c
-* Copyright (C) 2015 Seagate Technology.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-*/
+/**
+ * Copyright 2013-2015 Seagate Technology LLC.
+ *
+ * This Source Code Form is subject to the terms of the Mozilla
+ * Public License, v. 2.0. If a copy of the MPL was not
+ * distributed with this file, You can obtain one at
+ * https://mozilla.org/MP:/2.0/.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but is provided AS-IS, WITHOUT ANY WARRANTY; including without
+ * the implied warranty of MERCHANTABILITY, NON-INFRINGEMENT or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the Mozilla Public
+ * License for more details.
+ *
+ * See www.openkinetic.org for more project information
+ */
+
 #ifndef _KINETIC_SEMAPHORE_H
 #define _KINETIC_SEMAPHORE_H
 
@@ -25,7 +23,7 @@
 typedef struct _KineticSemaphore KineticSemaphore;
 
 /**
- * @brief Creates a KineticSemaphore. The KineticSemaphore is a simple wrapper 
+ * @brief Creates a KineticSemaphore. The KineticSemaphore is a simple wrapper
  *        around a pthread condition variable and provides a a thread-safe
  *        way to block a thread and wait for notification from another thread.
  *
@@ -34,7 +32,7 @@ typedef struct _KineticSemaphore KineticSemaphore;
 KineticSemaphore * KineticSemaphore_Create(void);
 
 /**
- * @brief Signals KineticSemaphore. This will unblock another 
+ * @brief Signals KineticSemaphore. This will unblock another
  *        thread that's blocked on the given semaphore using KineticSemaphore_WaitForSignalAndDestroy()
  *        You should never signal the same KineticSemaphore more than once.
  *
@@ -64,7 +62,7 @@ bool KineticSemaphore_DestroyIfSignaled(KineticSemaphore * sem);
 
 /**
  * @brief Blocks until the given semaphore is signaled. This will not block
- *        if the Semaphore has already been signaled. 
+ *        if the Semaphore has already been signaled.
  *        Once unblocked, this will also destroy (free) the provide KineticSemaphore.
  *
  * @param sem       A pointer to the semaphore to wait for a signal.
