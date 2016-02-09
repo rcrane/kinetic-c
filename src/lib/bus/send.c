@@ -125,7 +125,10 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
         #ifdef TEST
         errno = poll_errno;
         #endif
-        int res = syscall_poll(fds, 1, -1);
+	
+	BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 256, "Time left %d",rem_msec);
+
+        int res = syscall_poll(fds, 1, -1); //rem_msec
         BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
             "handle_write: poll res %d", res);
         if (res == -1) {
