@@ -126,9 +126,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
         errno = poll_errno;
         #endif
 	
-	BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 256, "Time left %d",rem_msec);
-
-        int res = syscall_poll(fds, 1, -1); //rem_msec
+        int res = syscall_poll(fds, 1, rem_msec); 
         BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
             "handle_write: poll res %d", res);
         if (res == -1) {
@@ -172,6 +170,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
                 assert(false);  /* match fail */
             }
         } else if (res == 0) {  /* timeout */
+ 	    BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "do_blocking_send on %d: no file descriptor!", box->fd);
             break;
         }
     }
