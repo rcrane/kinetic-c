@@ -67,6 +67,10 @@ KineticClient * KineticClient_Init(KineticClientConfig *config)
     return client;
 }
 
+SSL* KineticClient_GetSSL(KineticSession * const session){
+  return KineticSession_GetSSL(session);
+}
+
 void KineticClient_Shutdown(KineticClient * const client)
 {
     KineticBus_Shutdown(client);

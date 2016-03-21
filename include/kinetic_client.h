@@ -19,6 +19,7 @@
 #define _KINETIC_CLIENT_H
 
 #include "kinetic_types.h"
+#include <openssl/ssl.h>
 
 /**
  * @brief Gets current version info of kinetic-c library
@@ -26,6 +27,8 @@
  * @return Returns a pointer to static version info
  */
 const KineticVersionInfo * KineticClient_Version(void);
+
+SSL* KineticClient_GetSSL(KineticSession * const session);
 
 /**
  * Initializes the Kinetic API and configures logging.
