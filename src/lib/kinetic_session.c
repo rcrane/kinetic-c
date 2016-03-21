@@ -25,6 +25,7 @@
 #include "kinetic_allocator.h"
 #include "kinetic_resourcewaiter.h"
 #include "kinetic_logger.h"
+#include "listener_internal_types.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -123,6 +124,26 @@ connection_error_cleanup:
     }
     session->connected = false;
     return KINETIC_STATUS_CONNECTION_ERROR;
+}
+
+SSL* KineticSession_GetSSL(KineticSession * const session)
+{
+    SSL * p = NULL;
+    struct listener* li = Bus_GetListenerForSocket(session->messageBus,session->socket);
+    if(li == NULL){
+      return NULL;
+    }
+
+    for(int x =0;x<MAX_FDS;x++){
+      p = li->fd_info[x]->ssl;
+      if(p != ((SSL *)-2)) // BUS_NO_SSL
+      {
+        return p;
+      }
+    }
+
+
+    return p;
 }
 
 KineticStatus KineticSession_Disconnect(KineticSession * const session)

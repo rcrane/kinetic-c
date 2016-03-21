@@ -19,6 +19,7 @@
 #define _KINETIC_SESSION_H
 
 #include "kinetic_types_internal.h"
+#include <openssl/ssl.h>
 
 KineticStatus KineticSession_Create(KineticSession * const session, KineticClient * const client);
 KineticStatus KineticSession_Destroy(KineticSession * const session);
@@ -31,5 +32,9 @@ int64_t KineticSession_GetClusterVersion(KineticSession const * const session);
 void KineticSession_SetClusterVersion(KineticSession * const session, int64_t cluster_version);
 int64_t KineticSession_GetConnectionID(KineticSession const * const session);
 void KineticSession_SetConnectionID(KineticSession * const session, int64_t id);
+/**
+ * @brief Return the SSL handle of the session's connection
+ */
+SSL* KineticSession_GetSSL(KineticSession * const session);
 
 #endif // _KINETIC_SESSION_H
