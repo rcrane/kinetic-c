@@ -129,19 +129,28 @@ connection_error_cleanup:
 SSL* KineticSession_GetSSL(KineticSession * const session)
 {
     SSL * p = NULL;
+
+    if(session->config.useSsl == false){
+      return NULL;
+    }
+
     struct listener* li = Bus_GetListenerForSocket(session->messageBus,session->socket);
     if(li == NULL){
       return NULL;
     }
 
-    for(int x =0;x<MAX_FDS;x++){
+    for(int x = 0; x < li->tracked_fds; x++){
+
+      if(li->fd_info[x] == NULL){
+        continue;
+      }
+
       p = li->fd_info[x]->ssl;
-      if(p != ((SSL *)-2)) // BUS_NO_SSL
-      {
+
+      if(p != ((SSL *)-2)) {// BUS_NO_SSL
         return p;
       }
     }
-
 
     return p;
 }

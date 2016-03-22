@@ -32,9 +32,15 @@ int64_t KineticSession_GetClusterVersion(KineticSession const * const session);
 void KineticSession_SetClusterVersion(KineticSession * const session, int64_t cluster_version);
 int64_t KineticSession_GetConnectionID(KineticSession const * const session);
 void KineticSession_SetConnectionID(KineticSession * const session, int64_t id);
+
 /**
- * @brief Return the SSL handle of the session's connection
+ * Fetch the SSL handle of the session's connection.
+ *
+ * @param session   The connected KineticSession.
+ *
+ * @return          Returns a pointer to the SSL object of the session's connection
+ *
  */
-SSL* KineticSession_GetSSL(KineticSession * const session);
+ SSL* KineticSession_GetSSL(KineticSession * const session);
 
 #endif // _KINETIC_SESSION_H

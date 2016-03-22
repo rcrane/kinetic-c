@@ -28,6 +28,14 @@
  */
 const KineticVersionInfo * KineticClient_Version(void);
 
+/**
+ * Fetch the SSL handle of the session's connection.
+ *
+ * @param session   The connected KineticSession.
+ *
+ * @return          Returns a pointer to the SSL object of the session's connection
+ *
+ */
 SSL* KineticClient_GetSSL(KineticSession * const session);
 
 /**
