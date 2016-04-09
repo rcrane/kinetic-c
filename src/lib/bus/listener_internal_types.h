@@ -117,10 +117,10 @@ typedef struct rx_info_t {
 
 /* Max number of partially processed messages.
  * TODO: Capacity planning. */
-#define MAX_PENDING_MESSAGES (512)
+#define MAX_PENDING_MESSAGES (1024)
 
 /** Max number of unprocessed queue messages */
-#define MAX_QUEUE_MESSAGES (4)
+#define MAX_QUEUE_MESSAGES (16)
 typedef uint32_t msg_flag_t;
 
 /** Special value meaning poll should block indefinitely. */
