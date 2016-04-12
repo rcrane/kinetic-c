@@ -120,7 +120,7 @@ typedef struct rx_info_t {
 #define MAX_PENDING_MESSAGES (1024)
 
 /** Max number of unprocessed queue messages */
-#define MAX_QUEUE_MESSAGES (8)
+#define MAX_QUEUE_MESSAGES (32)
 typedef uint32_t msg_flag_t;
 
 /** Special value meaning poll should block indefinitely. */
