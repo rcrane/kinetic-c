@@ -80,7 +80,11 @@ STATIC bus_sink_cb_res_t sink_cb(uint8_t *read_buf,
     KineticSession * session = (KineticSession*)socket_udata;
     KINETIC_ASSERT(session);
     socket_info *si = session->si;
-    KINETIC_ASSERT(si);
+    if(si == NULL){
+	// This is here to be able to set a breakpoint
+	assert(false);	
+    }
+    //KINETIC_ASSERT(si);
 
     switch (si->state) {
     case STATE_UNINIT:
