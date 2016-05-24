@@ -57,7 +57,7 @@ void KineticLogger_Init(const char* log_file, int log_level)
 
     KineticLoggerHandle = NULL;
     if (log_file == NULL) {
-        printf("\nLogging kinetic-c output is disabled!\n");
+        //printf("\nLogging kinetic-c output is disabled!\n");
         return;
     }
     else {
