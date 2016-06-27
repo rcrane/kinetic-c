@@ -25,7 +25,7 @@ SESSION_PIN ?= 1234
 WARN = -Wall -Wextra -Wstrict-prototypes -Wcast-align -pedantic
 WARN += -Wno-missing-field-initializers -Werror=strict-prototypes -Wshadow
 WARN += -Werror
-CDEFS += -D_POSIX_C_SOURCE=199309L -D_C99_SOURCE=1
+CDEFS += -D_POSIX_C_SOURCE=199309L -D_C99_SOURCE=1 -D_XOPEN_SOURCE=700
 CFLAGS += -std=c99 -fPIC -g $(WARN) $(CDEFS) $(OPTIMIZE)
 LDFLAGS += -lm -L${OPENSSL_PATH}/lib -lcrypto -lssl -lpthread -ljson-c
 NUM_SIMS ?= 2
