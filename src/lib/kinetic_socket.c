@@ -43,7 +43,7 @@
 
 int KineticSocket_Connect(const char* host, int port)
 {
-    char port_str[32];
+    char port_str[32] = {0};
     struct addrinfo hints;
     struct addrinfo* ai_result = NULL;
     struct addrinfo* ai = NULL;

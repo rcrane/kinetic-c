@@ -121,7 +121,7 @@ int main(int argc, char** argv)
     writeArgs->session = session;
 
     // Create a ByteBuffer for consuming chunks of data out of for overlapped PUTs
-    writeArgs->data = ByteBuffer_Create(buf, dataLen, 0);
+:    writeArgs->data = ByteBuffer_Create(buf, dataLen, 0);
 
     // Configure common meta-data for the entries
     struct timeval now;
