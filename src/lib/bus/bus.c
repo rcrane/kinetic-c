@@ -173,7 +173,6 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
 	    fprintf(stderr,"Pthread create failed");
             goto cleanup;
         }
-        pthread_setname_np(b->threads[i],"kinbus");
     }
 
     b->fd_set = fds;

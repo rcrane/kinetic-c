@@ -19,6 +19,7 @@
 #include "listener_task_internal.h"
 #include "util.h"
 #include "syscall.h"
+#include <sys/prctl.h>
 
 #include <assert.h>
 #include "listener_cmd.h"
@@ -44,7 +45,7 @@ void *ListenerTask_MainLoop(void *arg) {
     listener *self = (listener *)arg;
     assert(self);
     struct bus *b = self->bus;
-
+    prctl (PR_SET_NAME, "kinlistener", 0, 0, 0);
     #ifndef TEST
     struct timeval now;
     #endif

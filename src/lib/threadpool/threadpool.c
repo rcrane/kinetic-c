@@ -23,7 +23,7 @@
 #include <err.h>
 #include <poll.h>
 #include <errno.h>
-
+#include <sys/prctl.h>
 #include "threadpool_internals.h"
 
 #define MIN_DELAY 10 /* msec */
@@ -275,7 +275,6 @@ static bool spawn(struct threadpool *t) {
 
     int res = pthread_create(&ti->t, NULL, thread_task, tc);
     if (res == 0) {
-        pthread_setname_np(ti->t,"kinthread");
         ti->status = STATUS_AWAKE;
         return true;
     } else if (res == EAGAIN) {
@@ -300,6 +299,7 @@ static void *thread_task(void *arg) {
     struct pollfd pfd[1] = { { .fd=ti->child_fd, .events=POLLIN }, };
     uint8_t read_buf[NOTIFY_MSG_LEN*32];
 
+    prctl(PR_SET_NAME, "kinthread", 0, 0, 0);
     while (ti->status < STATUS_SHUTDOWN) {
         if (t->task_request_head == t->task_commit_head) {
             if (ti->status == STATUS_AWAKE) {
