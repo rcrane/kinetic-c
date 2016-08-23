@@ -167,13 +167,13 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
     b->threads = threads;
 
     for (int i = 0; i < b->listener_count; i++) {
-        int pcres = pthread_create(&b->threads[i], NULL,
-            ListenerTask_MainLoop, (void *)b->listeners[i]);
+        int pcres = pthread_create(&b->threads[i], NULL, ListenerTask_MainLoop, (void *)b->listeners[i]);
         if (pcres != 0) {
             res->status = BUS_INIT_ERROR_PTHREAD_INIT_FAIL;
 	    fprintf(stderr,"Pthread create failed");
             goto cleanup;
         }
+        pthread_setname_np(b->threads[i],"kinbus");
     }
 
     b->fd_set = fds;

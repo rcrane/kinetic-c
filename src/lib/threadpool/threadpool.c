@@ -275,6 +275,7 @@ static bool spawn(struct threadpool *t) {
 
     int res = pthread_create(&ti->t, NULL, thread_task, tc);
     if (res == 0) {
+        pthread_setname_np(ti->t,"kinthread");
         ti->status = STATUS_AWAKE;
         return true;
     } else if (res == EAGAIN) {
