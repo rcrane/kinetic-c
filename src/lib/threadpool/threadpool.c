@@ -28,7 +28,7 @@
 
 #define MIN_DELAY 10 /* msec */
 #define DEFAULT_MAX_DELAY 10000 /* msec */
-#define INFINITE_DELAY -1 /* poll will only return upon an event */
+#define INFINITE_DELAY 1000 /* poll will only return upon an event */
 #define DEFAULT_TASK_RINGBUF_SIZE2 8
 #define DEFAULT_MAX_THREADS 8
 
