@@ -24,7 +24,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-
+#include <sys/time.h>
 #include "bus.h"
 #include "yacht.h"
 

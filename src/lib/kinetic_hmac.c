@@ -119,9 +119,20 @@ static void KineticHMAC_Compute(KineticHMAC* hmac,
     KINETIC_ASSERT(msg->commandbytes.len > 0);
 
     uint32_t lenNBO = KineticNBO_FromHostU32(msg->commandbytes.len);
-
+#if OPENSSL_VERSION_NUMBER > 0x10100000L
+   HMAC_CTX *ctx = HMAC_CTX_new();
+   if (ctx != NULL) {
+       if (!HMAC_CTX_reset(ctx)) {
+           HMAC_CTX_free(ctx);
+	   fprintf(stderr, "HMAC_CTX malloc error!\n");
+           return;
+       }
+   }
+#else
     HMAC_CTX ctx;
     HMAC_CTX_init(&ctx);
+#endif
+
 #if LOG_HMAC
     fprintf(stderr, "\n\nUsing hmac key [%zd]: '%s' and length '", key.len, key.data);
     for (size_t i = 0; i < sizeof(uint32_t); i++) {
@@ -136,9 +147,18 @@ static void KineticHMAC_Compute(KineticHMAC* hmac,
     fprintf(stderr, "\n\n");
 #endif
 
+#if OPENSSL_VERSION_NUMBER > 0x10100000L
+
+    HMAC_Init_ex(ctx, key.data, key.len, EVP_sha1(), NULL);
+    HMAC_Update(ctx, (uint8_t*)&lenNBO, sizeof(uint32_t));
+    HMAC_Update(ctx, msg->commandbytes.data, msg->commandbytes.len);
+    HMAC_Final(ctx, hmac->data, &hmac->len);
+    HMAC_CTX_free(ctx);
+#else
     HMAC_Init_ex(&ctx, key.data, key.len, EVP_sha1(), NULL);
     HMAC_Update(&ctx, (uint8_t*)&lenNBO, sizeof(uint32_t));
     HMAC_Update(&ctx, msg->commandbytes.data, msg->commandbytes.len);
     HMAC_Final(&ctx, hmac->data, &hmac->len);
     HMAC_CTX_cleanup(&ctx);
+#endif
 }
