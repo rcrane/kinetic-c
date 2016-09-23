@@ -19,6 +19,7 @@
 #include <err.h>
 #include <assert.h>
 #include "syscall.h"
+#include <string.h>
 
 #include "listener_cmd.h"
 #include "listener_cmd_internal.h"
