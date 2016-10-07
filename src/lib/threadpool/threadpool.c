@@ -109,7 +109,7 @@ bool Threadpool_Schedule(struct threadpool *t, struct threadpool_task *task,
     for (;;) {
         size_t wh = t->task_reserve_head;
         size_t rh = t->task_release_head;
-        size_t qtr = queue_size / 4; // hack to have more earlier backup
+        size_t qtr = queue_size / 2; // hack to have more earlier backup
 
         if (wh - rh >= queue_size - qtr) {
             if (pushback) { *pushback = wh - rh; }
