@@ -109,8 +109,9 @@ bool Threadpool_Schedule(struct threadpool *t, struct threadpool_task *task,
     for (;;) {
         size_t wh = t->task_reserve_head;
         size_t rh = t->task_release_head;
+        size_t qtr = queue_size / 4; // hack to have more earlier backup
 
-        if (wh - rh >= queue_size - 1) {
+        if (wh - rh >= queue_size - qtr) {
             if (pushback) { *pushback = wh - rh; }
             //printf("FULL, %zd, %zd\n", wh - rh, t->task_commit_head - t->task_request_head);
             return false;       /* full, cannot schedule */
