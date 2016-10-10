@@ -29,7 +29,7 @@
 #define MIN_DELAY 1 /* msec */
 #define DEFAULT_MAX_DELAY 10000 /* msec */
 #define INFINITE_DELAY -1 /* poll will only return upon an event */
-#define DEFAULT_TASK_RINGBUF_SIZE2 29
+#define DEFAULT_TASK_RINGBUF_SIZE2 16
 #define DEFAULT_MAX_THREADS 8
 
 static void notify_new_task(struct threadpool *t);
@@ -51,6 +51,7 @@ struct threadpool *Threadpool_Init(struct threadpool_config *cfg) {
     set_defaults(cfg);
 
     if (cfg->task_ringbuf_size2 > THREADPOOL_MAX_RINGBUF_SIZE2) {
+        fprintf(stderr,"task_ringbuf_size2 > THREADPOOL_MAX_RINGBUF_SIZE2\n");
         return NULL;
     }
     if (cfg->max_threads < 1) { return NULL; }
