@@ -93,12 +93,12 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
 
     bus *b = calloc(1, sizeof(*b));
     if (b == NULL) { 
-	fprintf(stderr,"Bus calloc failed");
+	fprintf(stderr,"Bus calloc failed\n");
 	goto cleanup;
     }
 
     if (!BusSSL_Init(b)) {
-	 fprintf(stderr,"Bus init failed");
+	 fprintf(stderr,"BusSSL_Init failed\n");
 	 goto cleanup; 
     }
 
@@ -111,19 +111,18 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
     b->udata = config->bus_udata;
     if (0 != pthread_mutex_init(&b->fd_set_lock, NULL)) {
         res->status = BUS_INIT_ERROR_MUTEX_INIT_FAIL;
-	fprintf(stderr,"Mutex failed");
+    	fprintf(stderr,"Mutex failed\n");
         goto cleanup;
     }
     locks_initialized++;
 
     attempt_to_increase_resource_limits(b);
 
-    BUS_LOG_SNPRINTF(b, 3, LOG_INITIALIZATION, b->udata, 64,
-        "Initialized bus at %p", (void*)b);
+    BUS_LOG_SNPRINTF(b, 3, LOG_INITIALIZATION, b->udata, 64, "Initialized bus at %p", (void*)b);
 
     ls = calloc(config->listener_count, sizeof(*ls));
     if (ls == NULL) {
-	fprintf(stderr,"Listener calloc failed");
+    	fprintf(stderr,"Listener calloc failed\n");
         goto cleanup;
     }
 
@@ -131,18 +130,17 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
         ls[i] = Listener_Init(b, config);
         if (ls[i] == NULL) {
             res->status = BUS_INIT_ERROR_LISTENER_INIT_FAIL;
-	    fprintf(stderr,"Listener init failed");
+	        fprintf(stderr,"Listener init failed\n");
             goto cleanup;
         } else {
-            BUS_LOG_SNPRINTF(b, 3, LOG_INITIALIZATION, b->udata, 64,
-                "Initialized listener %d at %p", i, (void*)ls[i]);
+            BUS_LOG_SNPRINTF(b, 3, LOG_INITIALIZATION, b->udata, 64, "Initialized listener %d at %p", i, (void*)ls[i]);
         }
     }
 
     tp = Threadpool_Init(&config->threadpool_cfg);
     if (tp == NULL) {
         res->status = BUS_INIT_ERROR_THREADPOOL_INIT_FAIL;
-	fprintf(stderr,"Threadpool init failed");
+    	fprintf(stderr,"Threadpool init failed\n");
         goto cleanup;
     }
 
@@ -150,13 +148,13 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
     joined = calloc(thread_count, sizeof(bool));
     threads = calloc(thread_count, sizeof(pthread_t));
     if (joined == NULL || threads == NULL) {
-	fprintf(stderr,"Thread+Joined calloc failed");
+	    fprintf(stderr,"Thread+Joined calloc failed\n");
         goto cleanup;
     }
 
     fds = Yacht_Init(DEF_FD_SET_SIZE2);
     if (fds == NULL) {
-	fprintf(stderr,"Yacht Init failed");
+    	fprintf(stderr,"Yacht Init failed\n");
         goto cleanup;
     }
 
@@ -170,7 +168,7 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
         int pcres = pthread_create(&b->threads[i], NULL, ListenerTask_MainLoop, (void *)b->listeners[i]);
         if (pcres != 0) {
             res->status = BUS_INIT_ERROR_PTHREAD_INIT_FAIL;
-	    fprintf(stderr,"Pthread create failed");
+    	    fprintf(stderr,"Pthread create failed\n");
             goto cleanup;
         }
     }
