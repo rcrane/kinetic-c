@@ -26,10 +26,10 @@
 #include <sys/prctl.h>
 #include "threadpool_internals.h"
 
-#define MIN_DELAY 10 /* msec */
+#define MIN_DELAY 1 /* msec */
 #define DEFAULT_MAX_DELAY 10000 /* msec */
 #define INFINITE_DELAY -1 /* poll will only return upon an event */
-#define DEFAULT_TASK_RINGBUF_SIZE2 8
+#define DEFAULT_TASK_RINGBUF_SIZE2 29
 #define DEFAULT_MAX_THREADS 8
 
 static void notify_new_task(struct threadpool *t);
@@ -109,9 +109,8 @@ bool Threadpool_Schedule(struct threadpool *t, struct threadpool_task *task,
     for (;;) {
         size_t wh = t->task_reserve_head;
         size_t rh = t->task_release_head;
-        size_t qtr = queue_size / 2; // hack to have more earlier backup
 
-        if (wh - rh >= queue_size - qtr) {
+        if (wh - rh >= queue_size - 1) {
             if (pushback) { *pushback = wh - rh; }
             //printf("FULL, %zd, %zd\n", wh - rh, t->task_commit_head - t->task_request_head);
             return false;       /* full, cannot schedule */
