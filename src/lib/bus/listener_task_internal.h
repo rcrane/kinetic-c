@@ -23,12 +23,12 @@
 #include "listener_internal_types.h"
 
 /** Coefficients for backpressure based on certain conditions. */
-#define MSG_BP_1QTR       (0.25)
-#define MSG_BP_HALF       (0.5)
-#define MSG_BP_3QTR       (2.0)
-#define RX_INFO_BP_1QTR   (0.5)
-#define RX_INFO_BP_HALF   (0.5)
-#define RX_INFO_BP_3QTR   (2.0)
+#define MSG_BP_1QTR       (0)
+#define MSG_BP_HALF       (0)
+#define MSG_BP_3QTR       (0.2)
+#define RX_INFO_BP_1QTR   (0)
+#define RX_INFO_BP_HALF   (0)
+#define RX_INFO_BP_3QTR   (0.2)
 #define THREADPOOL_BP     (1.0)
 
 #endif
