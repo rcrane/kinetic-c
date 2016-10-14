@@ -590,15 +590,18 @@ bool Bus_ProcessBoxedMessage(struct bus *b,
     assert(box);
     assert(box->result.status != BUS_SEND_UNDEFINED);
 
+/*
     struct threadpool_task task = {
         .task = box_execute_cb,
         .cleanup = box_cleanup_cb,
         .udata = box,
     };
 
-    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-        "Scheduling boxed message -- %p -- where it will be freed", (void*)box);
+    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "Scheduling boxed message -- %p -- where it will be freed", (void*)box);
     return Threadpool_Schedule(b->threadpool, &task, backpressure);
+*/
+    box_execute_cb(box);
+    return true;
 }
 
 /* How many seconds should it give the thread pool to shut down? */

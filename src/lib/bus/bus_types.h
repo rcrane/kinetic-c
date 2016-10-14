@@ -28,7 +28,7 @@
 struct boxed_msg;
 
 /* Max number of concurrent sends that can be active. */
-#define BUS_MAX_CONCURRENT_SENDS 10
+#define BUS_MAX_CONCURRENT_SENDS 20
 
 /* Default number of seconds before a message response times out. */
 #define BUS_DEFAULT_TIMEOUT_SEC 10

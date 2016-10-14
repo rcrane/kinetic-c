@@ -114,6 +114,7 @@ KineticStatus bus_to_kinetic_status(bus_send_status_t const status)
         case BUS_SEND_SUCCESS:
             res = KINETIC_STATUS_SUCCESS;
             break;
+        case BUS_SEND_TX_TIMEOUT_NOTIFYING_LISTENER:
         case BUS_SEND_TX_TIMEOUT:
             res = KINETIC_STATUS_SOCKET_TIMEOUT;
             break;

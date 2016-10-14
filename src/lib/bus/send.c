@@ -199,7 +199,7 @@ static bool attempt_to_enqueue_HOLD_message_to_listener(struct bus *b,
         } else {
             /* Don't apply much backpressure here since the client
              * thread will get it when the message is done sending. */
-            syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
+            //syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
         }
     }
     return false;
@@ -230,7 +230,7 @@ void Send_HandleFailure(struct bus *b, boxed_msg *box, bus_send_status_t status)
             return;
         } else {
             retries++;
-            syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
+            //syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
             if (retries > 0 && (retries & 255) == 0) {
                 BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 64,
                     "looping on handle_failure retry: %zd", retries);
