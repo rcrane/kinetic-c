@@ -138,12 +138,14 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
     }
 
     tp = Threadpool_Init(&config->threadpool_cfg);
+    // Allow not to have threadpool 
+    /*
     if (tp == NULL) {
         res->status = BUS_INIT_ERROR_THREADPOOL_INIT_FAIL;
     	fprintf(stderr,"Threadpool init failed\n");
         goto cleanup;
     }
-
+    */
     int thread_count = config->listener_count;
     joined = calloc(thread_count, sizeof(bool));
     threads = calloc(thread_count, sizeof(pthread_t));
