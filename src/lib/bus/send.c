@@ -206,9 +206,8 @@ static bool attempt_to_enqueue_HOLD_message_to_listener(struct bus *b,
 }
 
 void Send_HandleFailure(struct bus *b, boxed_msg *box, bus_send_status_t status) {
-    BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,
-        "Send_HandleFailure: box %p, <fd:%d, seq_id:%lld>, status %d",
-        (void*)box, box->fd, (long long)box->out_seq_id, status);
+    BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64, "Send_HandleFailure: box %p, <fd:%d, seq_id:%lld>, status %d", (void*)box, box->fd, (long long)box->out_seq_id, status);
+
     BUS_ASSERT(b, b->udata, status != BUS_SEND_UNDEFINED);
 
     box->result = (bus_msg_result_t){
@@ -216,24 +215,21 @@ void Send_HandleFailure(struct bus *b, boxed_msg *box, bus_send_status_t status)
     };
 
     #ifndef TEST
-    size_t backpressure = 0;
+        size_t backpressure = 0;
     #endif
 
     /* Retry until it succeeds. */
     size_t retries = 0;
     for (;;) {
         if (Bus_ProcessBoxedMessage(b, box, &backpressure)) {
-            BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,
-                "deleted box %p", (void*)box);
-            Bus_BackpressureDelay(b, backpressure,
-                LISTENER_EXPECT_BACKPRESSURE_SHIFT);
+            BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64, "deleted box %p", (void*)box);
+            Bus_BackpressureDelay(b, backpressure, LISTENER_EXPECT_BACKPRESSURE_SHIFT);
             return;
         } else {
             retries++;
             //syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
             if (retries > 0 && (retries & 255) == 0) {
-                BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 64,
-                    "looping on handle_failure retry: %zd", retries);
+                BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 64, "looping on handle_failure retry: %zd", retries);
             }
         }
     }
