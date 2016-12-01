@@ -55,6 +55,11 @@ void KineticLogger_Init(const char* log_file, int log_level)
     KineticLogLevel = -1;
     pthread_mutex_init(&BufferMutex, NULL);
 
+    if (KineticLoggerHandle != NULL) {
+        printf("Only one log file allowed!\n Closing previous log.\n");
+        KineticLogger_Close();
+    }
+    
     KineticLoggerHandle = NULL;
     if (log_file == NULL) {
         //printf("\nLogging kinetic-c output is disabled!\n");
