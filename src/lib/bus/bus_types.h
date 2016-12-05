@@ -27,11 +27,8 @@
  * processing an message. */
 struct boxed_msg;
 
-/* Max number of concurrent sends that can be active. */
-#define BUS_MAX_CONCURRENT_SENDS 20
-
 /* Default number of seconds before a message response times out. */
-#define BUS_DEFAULT_TIMEOUT_SEC 10
+#define BUS_DEFAULT_TIMEOUT_SEC 5
 
 /* Special sequence ID value indicating none was available. */
 #define BUS_NO_SEQ_ID (-1)

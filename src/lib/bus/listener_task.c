@@ -529,7 +529,7 @@ static void observe_backpressure(listener *l, size_t backpressure) {
 
 uint16_t ListenerTask_GetBackpressure(struct listener *l) {
     uint16_t msg_fill_pressure = 0;
-
+    
     if (l->msgs_in_use < 0.25 * MAX_QUEUE_MESSAGES) {
         msg_fill_pressure = 0;
     } else if (l->msgs_in_use < 0.5 * MAX_QUEUE_MESSAGES) {

@@ -55,7 +55,10 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                             .tv_sec = 0,
                             .tv_nsec = 1000L * delay,
                         };
-                        nanosleep(&ts, NULL);
+                        while(head->type != MSG_NONE){
+                            printf("head->type != MSG_NONE\n");
+                            nanosleep(&ts, NULL);
+                        }
                     }
                     BUS_ASSERT(b, b->udata, head->type == MSG_NONE);
                     memset(&head->u, 0, sizeof(head->u));

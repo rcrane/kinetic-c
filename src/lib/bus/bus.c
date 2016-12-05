@@ -564,8 +564,7 @@ void Bus_BackpressureDelay(struct bus *b, size_t backpressure, uint8_t shift) {
 
     if (backpressure > 0) {
         BUS_LOG_SNPRINTF(b, 8, LOG_SENDER, b->udata, 64, "backpressure %zd", backpressure);
-//        syscall_poll(NULL, 0, backpressure);
-	//syscall_poll(NULL, 0, 2);
+        //syscall_poll(NULL, 0, backpressure);
     }
 }
 
@@ -587,8 +586,8 @@ static void box_cleanup_cb(void *udata) {
 
 /* Deliver a boxed message to the thread pool to execute.
  * The boxed message will be freed by the threadpool. */
-bool Bus_ProcessBoxedMessage(struct bus *b,
-        struct boxed_msg *box, size_t *backpressure) {
+bool Bus_ProcessBoxedMessage(struct bus *b, struct boxed_msg *box, size_t *backpressure) {
+
     assert(box);
     assert(box->result.status != BUS_SEND_UNDEFINED);
 
@@ -613,7 +612,7 @@ void Bus_Free(bus *b) {
     if (b == NULL) { return; }
     while (b->shutdown_state != SHUTDOWN_STATE_HALTED) {
         if (Bus_Shutdown(b)) { break; }
-        syscall_poll(NULL, 0, 10);  // sleep 10 msec
+        syscall_poll(NULL, 0, 10);  // shutdown sleep 10 msec
     }
 
     for (int i = 0; i < b->listener_count; i++) {

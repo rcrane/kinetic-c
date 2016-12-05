@@ -29,6 +29,10 @@ static ssize_t write_plain(struct bus *b, boxed_msg *box);
 static ssize_t write_ssl(struct bus *b, boxed_msg *box, SSL *ssl);
 static bool enqueue_EXPECT_message_to_listener(bus *b, boxed_msg *box);
 
+#ifndef USE_KINETIC_SIMULATOR
+#define MAX_SSL_WRITE 14425
+#endif
+
 #ifdef TEST
 struct timeval done;
 uint16_t backpressure = 0;
@@ -127,6 +131,7 @@ static ssize_t write_plain(struct bus *b, boxed_msg *box) {
     }
 }
 
+
 static ssize_t write_ssl(struct bus *b, boxed_msg *box, SSL *ssl) {
     uint8_t *msg = box->out_msg;
     size_t msg_size = box->out_msg_size;
@@ -135,12 +140,23 @@ static ssize_t write_ssl(struct bus *b, boxed_msg *box, SSL *ssl) {
     (void)fd;
     ssize_t written = 0;
     assert(rem >= 0);
-
+    ssize_t wrsz = 0;
+    
+    
     while (rem > 0) {
-        ssize_t wrsz = syscall_SSL_write(ssl, &msg[box->out_sent_size], rem);
-        BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,
-            "SSL_write: socket %d, write %zd => wrsz %zd",
-            fd, rem, wrsz);
+#ifdef USE_KINETIC_SIMULATOR
+        wrsz = syscall_SSL_write(ssl, &msg[box->out_sent_size], rem);
+#else
+        if(rem > MAX_SSL_WRITE){
+            wrsz = syscall_SSL_write(ssl, &msg[box->out_sent_size], MAX_SSL_WRITE);
+            /* The Seagate Ember unit or the ST4000NK001 disk has a bug that causes it to 
+               falsely handle TLS messages that are larger than 14427 bytes. 
+               The disk will respond with an error and terminate the session. */
+        }else{
+            wrsz = syscall_SSL_write(ssl, &msg[box->out_sent_size], rem);
+        }
+#endif
+        BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64, "SSL_write: socket %d, write %zd => wrsz %zd", fd, rem, wrsz);
         if (wrsz > 0) {
             written += wrsz;
             return written;
