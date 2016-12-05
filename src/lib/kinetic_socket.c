@@ -75,10 +75,10 @@ int KineticSocket_Connect(const char* host, int port)
     }
 
     KineticSocket_EnableTCPNoDelay(result.fd);
-
+    int send_buffer_size = 14000;
+    int recv_buffer_size = KINETIC_OBJ_SIZE;
     for (ai = ai_result; ai != NULL; ai = ai->ai_next) {
         int setsockopt_result;
-        int buffer_size = KINETIC_OBJ_SIZE;
 
 #if defined(SO_NOSIGPIPE) && !defined(__APPLE__)
         // On BSD-like systems we can set SO_NOSIGPIPE on the socket to
@@ -100,7 +100,7 @@ int KineticSocket_Connect(const char* host, int port)
         // Note: OS allocates 2x this value for its overhead
         setsockopt_result = setsockopt(result.fd,
                                        SOL_SOCKET, SO_SNDBUF,
-                                       &buffer_size, sizeof(buffer_size));
+                                       &send_buffer_size, sizeof(send_buffer_size));
         if (setsockopt_result == -1) {
             LOG0("Error setting socket send buffer size");
             continue;
@@ -110,7 +110,7 @@ int KineticSocket_Connect(const char* host, int port)
         // Note: OS allocates 2x this value for its overheadbuffer_size
         setsockopt_result = setsockopt(result.fd,
                                        SOL_SOCKET, SO_RCVBUF,
-                                       &buffer_size, sizeof(buffer_size));
+                                       &recv_buffer_size, sizeof(recv_buffer_size));
         if (setsockopt_result == -1) {
             LOG0("Error setting socket receive buffer size");
             continue;
