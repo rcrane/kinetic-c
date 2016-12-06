@@ -252,7 +252,7 @@ static bool enqueue_EXPECT_message_to_listener(bus *b, boxed_msg *box) {
             BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,"enqueue_request_sent: failed delivery %d", retries);
             //syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
             if(retries >= SEND_NOTIFY_LISTENER_RETRIES/2){
-                usleep(100);
+                usleep(10);
             }
         }
     }
