@@ -37,11 +37,10 @@ struct boxed_msg;
 /* Special sequence ID value indicating none was available. */
 #define BUS_NO_SEQ_ID (-1)
 
-#ifdef TEST
+#if defined(TEST) || defined(DISSABLE_BUS_LOG)
 #define BUS_LOG(B, LEVEL, EVENT_KEY, MSG, UDATA) (void)B
 #define BUS_LOG_SNPRINTF(B, LEVEL, EVENT_KEY, UDATA, MAX_SZ, FMT, ...) (void)B
 #else
-#if !DISSABLE_BUS_LOG
 #define BUS_LOG(B, LEVEL, EVENT_KEY, MSG, UDATA)                       \
     do {                                                               \
         struct bus *_b = (B);                                          \
@@ -78,7 +77,6 @@ struct boxed_msg;
             }                                                          \
         }                                                              \
     } while (0)
-#endif
 #endif
 
 #define BUS_ASSERT(B, UDATA, COND) \
