@@ -23,6 +23,10 @@
 
 #include "threadpool.h"
 
+
+#define DISSABLE_BUS_LOG true
+
+
 /* Boxed type for the internal state used while asynchronously
  * processing an message. */
 struct boxed_msg;
@@ -37,6 +41,7 @@ struct boxed_msg;
 #define BUS_LOG(B, LEVEL, EVENT_KEY, MSG, UDATA) (void)B
 #define BUS_LOG_SNPRINTF(B, LEVEL, EVENT_KEY, UDATA, MAX_SZ, FMT, ...) (void)B
 #else
+#if !DISSABLE_BUS_LOG
 #define BUS_LOG(B, LEVEL, EVENT_KEY, MSG, UDATA)                       \
     do {                                                               \
         struct bus *_b = (B);                                          \
@@ -73,6 +78,7 @@ struct boxed_msg;
             }                                                          \
         }                                                              \
     } while (0)
+#endif
 #endif
 
 #define BUS_ASSERT(B, UDATA, COND) \

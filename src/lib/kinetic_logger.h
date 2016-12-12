@@ -22,7 +22,7 @@
 #include "kinetic.pb-c.h"
 #include <stdarg.h>
 
-#define KINETIC_LOGGER_DISABLED false
+#define KINETIC_LOGGER_DISABLED true
 #define KINETIC_LOGGER_FLUSH_THREAD_ENABLED false
 #define KINETIC_LOGGER_LOG_SEQUENCE_ID true
 #define KINETIC_LOG_FILE "kinetic.log"
