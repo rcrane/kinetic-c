@@ -41,7 +41,16 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
             for (;;) {
                 int16_t miu = l->msgs_in_use;
-                assert(miu < MAX_QUEUE_MESSAGES);
+
+                while(miu >= MAX_QUEUE_MESSAGES){
+                    int16_t delay = 1 + (miu - MAX_QUEUE_MESSAGES);
+                    struct timespec ts = {
+                                .tv_sec = 0,
+                                .tv_nsec = 1000L * delay,
+                    };
+                    nanosleep(&ts, NULL);
+                    miu = l->msgs_in_use;
+                }         
 
                 if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msgs_in_use, miu, miu + 1)) {
                     BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64,
