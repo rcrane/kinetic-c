@@ -49,17 +49,21 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
 
                     /* Add counterpressure between the client and the listener.
                      * 10 * ((n >> 1) ** 2) microseconds */
-                    int16_t delay = 10 * (miu >> 1) * (miu >> 1);
-                    if (delay > 0) {
-                        struct timespec ts = {
-                            .tv_sec = 0,
-                            .tv_nsec = 1000L * delay,
-                        };
-                        while(head->type != MSG_NONE){
-                            printf("head->type != MSG_NONE\n");
+                    int16_t delay = (10 * (miu >> 1) * (miu >> 1));
+
+                    while(head->type != MSG_NONE){
+                        if (delay == 0) {
+                            pthread_yield();
+                        }else{
+                            struct timespec ts = {
+                                .tv_sec = 0,
+                                .tv_nsec = 1000L * delay,
+                            };
+    
                             nanosleep(&ts, NULL);
                         }
                     }
+                    
                     BUS_ASSERT(b, b->udata, head->type == MSG_NONE);
                     memset(&head->u, 0, sizeof(head->u));
                     return head;
