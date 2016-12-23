@@ -136,6 +136,7 @@ static void msg_handler(listener *l, listener_msg *pmsg) {
         break;
 
     case MSG_NONE:
+        break; // TODO
     default:
         BUS_ASSERT(b, b->udata, false);
         break;
