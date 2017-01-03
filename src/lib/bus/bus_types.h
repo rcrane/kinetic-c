@@ -24,7 +24,7 @@
 #include "threadpool.h"
 
 
-#define DISSABLE_BUS_LOG true
+#define DISSABLE_BUS_LOG false
 
 
 /* Boxed type for the internal state used while asynchronously
