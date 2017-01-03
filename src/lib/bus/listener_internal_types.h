@@ -124,7 +124,7 @@ typedef struct rx_info_t {
 typedef uint32_t msg_flag_t;
 
 /** Special value meaning poll should block indefinitely. */
-#define INFINITE_DELAY -1
+#define INFINITE_DELAY 1000
 
 /** Sentinel values used for listener.shutdown_notify_fd. */
 #define LISTENER_NO_FD (-1)
