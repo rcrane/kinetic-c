@@ -257,6 +257,8 @@ static bool enqueue_EXPECT_message_to_listener(bus *b, boxed_msg *box) {
         }
     }
 
+    BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 64,"enqueue_request_sent: giving up delivery %d", retries);
+
     /* Timeout, will be treated as a TX error */
     return false;
 }

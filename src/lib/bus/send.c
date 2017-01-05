@@ -162,7 +162,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
                 case SHHW_DONE:
                     return true;
                 case SHHW_ERROR:
-                    return true;
+                    return false; // Rob: BUS_SEND_TX_TIMEOUT_NOTIFYING_LISTENER
                 }
             } else {
                 BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 256,
