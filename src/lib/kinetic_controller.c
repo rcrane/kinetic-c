@@ -26,6 +26,7 @@
 #include "kinetic_resourcewaiter.h"
 #include "kinetic_logger.h"
 #include <pthread.h>
+#include <time.h>
 #include "bus.h"
 
 typedef struct {
@@ -80,11 +81,18 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
         // Send the request
         status = KineticOperation_SendRequest(operation);
 
+        struct timespec ts={0,0};
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += 5;
+        int n = 0;
         if (status == KINETIC_STATUS_SUCCESS) {
+
             pthread_mutex_lock(&data.receiveCompleteMutex);
-            while(data.completed == false) {
-                pthread_cond_wait(&data.receiveComplete, &data.receiveCompleteMutex);
+            while(data.completed == false && n == 0) {
+                n = pthread_cond_timedwait(&data.receiveComplete, &data.receiveCompleteMutex, &ts);
+                //pthread_cond_wait(&data.receiveComplete, &data.receiveCompleteMutex);
             }
+            // TODO set status to error on timeout
             status = data.status;
             pthread_mutex_unlock(&data.receiveCompleteMutex);
         }
