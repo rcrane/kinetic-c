@@ -564,7 +564,7 @@ void Bus_BackpressureDelay(struct bus *b, size_t backpressure, uint8_t shift) {
 
     if (backpressure > 0) {
         BUS_LOG_SNPRINTF(b, 8, LOG_SENDER, b->udata, 64, "backpressure %zd", backpressure);
-        //syscall_poll(NULL, 0, backpressure);
+        syscall_poll(NULL, 0, backpressure);
     }
 }
 
