@@ -43,20 +43,16 @@ bool BusPoll_OnCompletion(struct bus *b, int fd) {
         #ifdef TEST
         errno = poll_errno;
         #endif
-        BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64,
-            "poll_on_completion, polling %d", fd);
-        int res = syscall_poll(fds, 1, -1);
-        BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64,
-            "poll_on_completion for %d, res %d (errno %d)", fd, res, errno);
+        BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion, polling %d", fd);
+        int res = syscall_poll(fds, 1, 5000); // ROB -1 -> 3000
+        BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion for %d, res %d (errno %d)", fd, res, errno);
         if (res == -1) {
             if (Util_IsResumableIOError(errno)) {
-                BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64,
-                    "poll_on_completion, resumable IO error %d", errno);
+                BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion, resumable IO error %d", errno);
                 errno = 0;
                 continue;
             } else {
-                BUS_LOG_SNPRINTF(b, 1, LOG_SENDING_REQUEST, b->udata, 64,
-                    "poll_on_completion, non-resumable IO error %d", errno);
+                BUS_LOG_SNPRINTF(b, 1, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion, non-resumable IO error %d", errno);
                 return false;
             }
         } else if (res == 1) {
@@ -108,6 +104,7 @@ bool BusPoll_OnCompletion(struct bus *b, int fd) {
             BUS_LOG_SNPRINTF(b, 1, LOG_SENDING_REQUEST, b->udata, 64,
                 "poll_on_completion, blocking forever returned %d, errno %d", res, errno);
             errno = 0;
+            return false; // ROB
         }
     }
 }
