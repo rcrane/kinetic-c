@@ -63,7 +63,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                     miu = l->msgs_in_use;
                 }         
                 
-                if (head->type != MSG_NONE){
+                if (head->type == MSG_NONE){
 
                     if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msgs_in_use, miu, miu + 1)) {
                         BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
