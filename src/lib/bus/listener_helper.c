@@ -33,6 +33,17 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
     BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 128,
         "get_free_msg -- in use: %d", l->msgs_in_use);
 
+    int16_t miu = l->msgs_in_use;
+    while(miu >= MAX_QUEUE_MESSAGES-1){
+                    int16_t delay = 1 + (miu - MAX_QUEUE_MESSAGES);
+                    struct timespec ts = {
+                                .tv_sec = 0,
+                                .tv_nsec = 1000L * delay,
+                    };
+                    nanosleep(&ts, NULL);
+                    miu = l->msgs_in_use;
+    }
+
     for (;;) {
         listener_msg *head = l->msg_freelist;
         if (head == NULL) {
@@ -40,8 +51,8 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
             return NULL;
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
             for (;;) {
-                int16_t miu = l->msgs_in_use;
 
+                miu = l->msgs_in_use;
                 while(miu >= MAX_QUEUE_MESSAGES){
                     int16_t delay = 1 + (miu - MAX_QUEUE_MESSAGES);
                     struct timespec ts = {
@@ -51,31 +62,33 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                     nanosleep(&ts, NULL);
                     miu = l->msgs_in_use;
                 }         
+                
+                if (head->type != MSG_NONE){
 
-                if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msgs_in_use, miu, miu + 1)) {
-                    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64,
-                        "got free msg: %u", head->id);
+                    if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msgs_in_use, miu, miu + 1)) {
+                        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
 
-                    /* Add counterpressure between the client and the listener.
-                     * 10 * ((n >> 1) ** 2) microseconds */
-                    int16_t delay = (10 * (miu >> 1) * (miu >> 1));
+                        /* Add counterpressure between the client and the listener.
+                         * 10 * ((n >> 1) ** 2) microseconds */
+                        int16_t delay = (10 * (miu >> 1) * (miu >> 1));
 
-                    while(head->type != MSG_NONE){
-                        if (delay == 0) {
-                            pthread_yield();
-                        }else{
-                            struct timespec ts = {
-                                .tv_sec = 0,
-                                .tv_nsec = 1000L * delay,
-                            };
+                        while(head->type != MSG_NONE){
+                            if (delay == 0) {
+                                pthread_yield();
+                            }else{
+                                struct timespec ts = {
+                                    .tv_sec = 0,
+                                    .tv_nsec = 1000L * delay,
+                                };
     
-                            nanosleep(&ts, NULL);
+                                nanosleep(&ts, NULL);
+                            }
                         }
-                    }
                     
-                    BUS_ASSERT(b, b->udata, head->type == MSG_NONE);
-                    memset(&head->u, 0, sizeof(head->u));
-                    return head;
+                        BUS_ASSERT(b, b->udata, head->type == MSG_NONE);
+                        memset(&head->u, 0, sizeof(head->u));
+                        return head;
+                    }
                 }
             }
         }
@@ -102,8 +115,7 @@ bool ListenerHelper_PushMessage(struct listener *l, listener_msg *msg, int *repl
                 errno = 0;
                 continue;
             } else {
-                BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64,
-                    "write_commit error, errno %d", errno);
+                BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64, "write_commit error, errno %d", errno);
                 errno = 0;
                 ListenerTask_ReleaseMsg(l, msg);
                 return false;
@@ -126,21 +138,18 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
         BUS_LOG(l->bus, 4, LOG_LISTENER, "reserving RX info", l->bus->udata);
         BUS_ASSERT(b, b->udata, head->state == RIS_INACTIVE);
         if (l->rx_info_max_used < head->id) {
-            BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-                "rx_info_max_used <- %d", head->id);
+            BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "rx_info_max_used <- %d", head->id);
             l->rx_info_max_used = head->id;
             BUS_ASSERT(b, b->udata, l->rx_info_max_used < MAX_PENDING_MESSAGES);
         }
 
-        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-            "got free rx_info_t %d (%p)", head->id, (void *)head);
+        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "got free rx_info_t %d (%p)", head->id, (void *)head);
         BUS_ASSERT(b, b->udata, head == &l->rx_info[head->id]);
         return head;
     }
 }
 
-rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l,
-        int fd, int64_t seq_id) {
+rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l, int fd, int64_t seq_id) {
     struct bus *b = l->bus;
     for (int i = 0; i <= l->rx_info_max_used; i++) {
         rx_info_t *info = &l->rx_info[i];
