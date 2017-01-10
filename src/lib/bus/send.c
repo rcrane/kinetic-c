@@ -195,7 +195,7 @@ static bool attempt_to_enqueue_HOLD_message_to_listener(struct bus *b,
         int completion_pipe = -1;
         #endif
         if (Listener_HoldResponse(l, fd, seq_id, timeout_sec, &completion_pipe)) {
-            return BusPoll_OnCompletion(b, completion_pipe);
+            return true; //BusPoll_OnCompletion(b, completion_pipe); // ROB: lets not wait here
         } else {
             /* Don't apply much backpressure here since the client
              * thread will get it when the message is done sending. */

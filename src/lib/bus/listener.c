@@ -110,8 +110,7 @@ bool Listener_RemoveSocket(struct listener *l, int fd, int *notify_fd) {
     return ListenerHelper_PushMessage(l, msg, notify_fd);
 }
 
-bool Listener_HoldResponse(struct listener *l, int fd,
-        int64_t seq_id, int16_t timeout_sec, int *notify_fd) {
+bool Listener_HoldResponse(struct listener *l, int fd, int64_t seq_id, int16_t timeout_sec, int *notify_fd) {
     listener_msg *msg = ListenerHelper_GetFreeMsg(l);
     struct bus *b = l->bus;
     if (msg == NULL) {
@@ -119,9 +118,7 @@ bool Listener_HoldResponse(struct listener *l, int fd,
         return false;
     }
 
-    BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128,
-        "Listener_HoldResponse with <fd:%d, seq_id:%lld>",
-        fd, (long long)seq_id);
+    BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128, "Listener_HoldResponse with <fd:%d, seq_id:%lld>", fd, (long long)seq_id);
 
     msg->type = MSG_HOLD_RESPONSE;
     msg->u.hold.fd = fd;
