@@ -324,9 +324,8 @@ bool Bus_SendRequest(struct bus *b, bus_user_msg *msg)
     /* The send was rejected -- free the box, but don't call the error
      * handling callback. */
     if (!res) {
-        BUS_LOG_SNPRINTF(b, 3, LOG_SENDING_REQUEST, b->udata, 64,
-            "Freeing box since request was rejected: %p", (void *)box);
-        free(box);
+        BUS_LOG_SNPRINTF(b, 3, LOG_SENDING_REQUEST, b->udata, 64, "Freeing box since request was rejected: %p", (void *)box);
+        if( box != NULL ) free(box); // ROB double free with line 578
     }
 
     return res;
@@ -575,7 +574,7 @@ static void box_execute_cb(void *udata) {
     bus_msg_result_t res = box->result;
     bus_msg_cb *cb = box->cb;
 
-    free(box);
+    if( box != NULL ) free(box);
     cb(&res, out_udata);
 }
 
