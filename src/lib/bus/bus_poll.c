@@ -44,7 +44,7 @@ bool BusPoll_OnCompletion(struct bus *b, int fd) {
         errno = poll_errno;
         #endif
         BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion, polling %d", fd);
-        int res = syscall_poll(fds, 1, 2000); // ROB -1 -> 2000
+        int res = syscall_poll(fds, 1, -1);
         BUS_LOG_SNPRINTF(b, 5, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion for %d, res %d (errno %d)", fd, res, errno);
         if (res == -1) {
             if (Util_IsResumableIOError(errno)) {
@@ -101,10 +101,8 @@ bool BusPoll_OnCompletion(struct bus *b, int fd) {
             /* This should never happen, but I have seen it occur on OSX.
              * If we log it, reset errno, and continue, it does not appear
              * to fall into busywaiting by always returning 0. */
-            BUS_LOG_SNPRINTF(b, 1, LOG_SENDING_REQUEST, b->udata, 64,
-                "poll_on_completion, blocking forever returned %d, errno %d", res, errno);
+            BUS_LOG_SNPRINTF(b, 1, LOG_SENDING_REQUEST, b->udata, 64, "poll_on_completion, blocking forever returned %d, errno %d", res, errno);
             errno = 0;
-            return false; // ROB: With lots of sender-threads, this else-branch may happen. --> Retry
         }
     }
 }
