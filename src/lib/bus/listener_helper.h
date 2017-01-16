@@ -32,7 +32,6 @@ bool ListenerHelper_PushMessage(struct listener *l, listener_msg *msg, int *repl
 rx_info_t *ListenerHelper_GetFreeRXInfo(listener *l);
 
 /** Try to find an RX_INFO record by a <file descriptor, sequence_id> pair. */
-rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l,
-    int fd, int64_t seq_id);
+rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l, int fd, int64_t seq_id, int wanted_state);
 
 #endif
