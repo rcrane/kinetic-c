@@ -42,6 +42,7 @@ static void retry_delivery(listener *l, rx_info_t *info);
 static void observe_backpressure(listener *l, size_t backpressure);
 
 void *ListenerTask_MainLoop(void *arg) {
+    
     listener *self = (listener *)arg;
     assert(self);
     struct bus *b = self->bus;
@@ -136,6 +137,7 @@ static void tick_handler(listener *l) {
         rx_info_t *info = &l->rx_info[i];
 
         switch (info->state) {
+        case RIS_HEADINUSE:
         case RIS_INACTIVE:
             break;
         case RIS_HOLD:
@@ -146,8 +148,7 @@ static void tick_handler(listener *l) {
                 struct timeval cur;
                 #endif
                 if (!Util_Timestamp(&cur, false)) {
-                    BUS_LOG(b, 0, LOG_LISTENER,
-                        "gettimeofday failure in tick_handler!", b->udata);
+                    BUS_LOG(b, 0, LOG_LISTENER, "gettimeofday failure in tick_handler!", b->udata);
                     continue;
                 }
 
@@ -158,6 +159,7 @@ static void tick_handler(listener *l) {
                     (void*)info, info->u.hold.fd, (long long)info->u.hold.seq_id,
                     (long)cur.tv_sec, (long)cur.tv_usec);
 
+                fprintf(stderr, "Timeout -> ListenerTask_ReleaseRXInfo %d\n", info->id);
                 ListenerTask_ReleaseRXInfo(l, info);
             } else {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
@@ -169,17 +171,13 @@ static void tick_handler(listener *l) {
         case RIS_EXPECT:
             any_work = true;
             if (info->u.expect.error == RX_ERROR_READY_FOR_DELIVERY) {
-                BUS_LOG(b, 4, LOG_LISTENER,
-                    "retrying RX event delivery", b->udata);
+                BUS_LOG(b, 4, LOG_LISTENER, "retrying RX event delivery", b->udata);
                 retry_delivery(l, info);
             } else if (info->u.expect.error == RX_ERROR_DONE) {
-                BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 64,
-                    "cleaning up completed RX event at info %p", (void*)info);
+                BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 64, "cleaning up completed RX event at info %p", (void*)info);
                 clean_up_completed_info(l, info);
             } else if (info->u.expect.error != RX_ERROR_NONE) {
-                BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64,
-                    "notifying of rx failure -- error %d (info %p)",
-                    info->u.expect.error, (void*)info);
+                BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64, "notifying of rx failure -- error %d (info %p)", info->u.expect.error, (void*)info);
                 ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_FAILURE);
             } else if (info->timeout_sec == 1) {
                 #ifndef TEST
@@ -199,18 +197,18 @@ static void tick_handler(listener *l) {
                     (long)box->tv_send_done.tv_sec, (long)box->tv_send_done.tv_usec,
                     (long)cur.tv_sec, (long)cur.tv_usec);
                 (void)box;
-
+                fprintf(stderr, "Timeout -> ListenerTask_ReleaseRXInfo %d\n", info->id);
                 ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_TIMEOUT);
             } else {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
                     "decrementing countdown on info %p [%u]: %ld",
                     (void*)info, info->id, info->timeout_sec - 1);
+
                 info->timeout_sec--;
             }
             break;
         default:
-            BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64,
-                "match fail %d on line %d", info->state, __LINE__);
+            BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64, "match fail %d on line %d", info->state, __LINE__);
             BUS_ASSERT(b, b->udata, false);
         }
     }
@@ -251,22 +249,23 @@ static void retry_delivery(listener *l, rx_info_t *info) {
 
     struct boxed_msg *box = info->u.expect.box;
     info->u.expect.box = NULL;       /* release */
-    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-        "releasing box %p at line %d", (void*)box, __LINE__);
+
+    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "releasing box %p at line %d", (void*)box, __LINE__);
     BUS_ASSERT(b, b->udata, box->result.status == BUS_SEND_SUCCESS);
 
     #ifndef TEST
     size_t backpressure = 0;
     #endif
+
     if (Bus_ProcessBoxedMessage(l->bus, box, &backpressure)) {
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-            "successfully delivered box %p (seq_id %lld) from info %d at line %d (retry)",
+        info->u.expect.box = NULL;
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "successfully delivered box %p (seq_id %lld) from info %d at line %d (retry)",
             (void*)box, (long long)box->out_seq_id, info->id, __LINE__);
+
         info->u.expect.error = RX_ERROR_DONE;
         ListenerTask_ReleaseRXInfo(l, info);
     } else {
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-            "returning box %p at line %d", (void*)box, __LINE__);
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "returning box %p at line %d", (void*)box, __LINE__);
         info->u.expect.box = box;    /* retry in tick_handler */
     }
 
@@ -277,15 +276,16 @@ static void clean_up_completed_info(listener *l, rx_info_t *info) {
     struct bus *b = l->bus;
     BUS_ASSERT(b, b->udata, info->state == RIS_EXPECT);
     BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
-    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-        "info %p, box is %p at line %d", (void*)info,
-        (void*)info->u.expect.box, __LINE__);
+    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "info %p, box is %p at line %d", (void*)info, (void*)info->u.expect.box, __LINE__);
 
     #ifndef TEST
     size_t backpressure = 0;
     #endif
+
     if (info->u.expect.box) {
+
         struct boxed_msg *box = info->u.expect.box;
+        
         if (box->result.status != BUS_SEND_SUCCESS) {
             printf("*** info %d: info->timeout %ld\n",
                 info->id, info->timeout_sec);
@@ -297,11 +297,14 @@ static void clean_up_completed_info(listener *l, rx_info_t *info) {
             printf("    info->box->out_msg %p\n", (void*)box->out_msg);
 
         }
+
         BUS_ASSERT(b, b->udata, box->result.status == BUS_SEND_SUCCESS);
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-            "releasing box %p at line %d", (void*)box, __LINE__);
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "releasing box %p at line %d", (void*)box, __LINE__);
+
         info->u.expect.box = NULL;       /* release */
+
         if (Bus_ProcessBoxedMessage(l->bus, box, &backpressure)) {
+            info->u.expect.box = NULL;
             ListenerTask_ReleaseRXInfo(l, info);
         } else {
             BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
@@ -315,8 +318,7 @@ static void clean_up_completed_info(listener *l, rx_info_t *info) {
     observe_backpressure(l, backpressure);
 }
 
-void ListenerTask_NotifyMessageFailure(listener *l,
-        rx_info_t *info, bus_send_status_t status) {
+void ListenerTask_NotifyMessageFailure(listener *l, rx_info_t *info, bus_send_status_t status) {
     #ifndef TEST
     size_t backpressure = 0;
     #endif
@@ -332,6 +334,7 @@ void ListenerTask_NotifyMessageFailure(listener *l,
     BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
         "releasing box %p at line %d", (void*)box, __LINE__);
     if (Bus_ProcessBoxedMessage(l->bus, box, &backpressure)) {
+        info->u.expect.box = NULL;
         BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
             "delivered box %p with failure message %d at line %d (info %p)",
             (void*)box, status, __LINE__, (void*)info);
@@ -355,18 +358,18 @@ static connection_info *get_connection_info(struct listener *l, int fd) {
     return NULL;
 }
 
+
 void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     struct bus *b = l->bus;
     BUS_ASSERT(b, b->udata, info);
-    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-        "releasing RX info %d (%p), state %d", info->id, (void *)info, info->state);
+    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,"releasing RX info %d (%p), state %d", info->id, (void *)info, info->state);
     BUS_ASSERT(b, b->udata, info->id < MAX_PENDING_MESSAGES);
     BUS_ASSERT(b, b->udata, info == &l->rx_info[info->id]);
 
     switch (info->state) {
     case RIS_HOLD:
-        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-            " -- releasing HOLD: has result? %d", info->u.hold.has_result);
+        info->state = RIS_HEADINUSE; // pseudo lock
+        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, " -- releasing HOLD: has result? %d", info->u.hold.has_result);
         if (info->u.hold.has_result) {
             /* If we have a message that timed out, we need to free it,
              * but don't know how. We should never get here, because it
@@ -379,17 +382,16 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
 
                 connection_info *ci = get_connection_info(l, info->u.hold.fd);
                 if (ci && b->unexpected_msg_cb) {
-                    BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 128,
-                        "CALLING UNEXPECTED_MSG_CB ON RESULT %p", (void *)&info->u.hold.result);
+                    BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 128, "CALLING UNEXPECTED_MSG_CB ON RESULT %p", (void *)&info->u.hold.result);
                     b->unexpected_msg_cb(msg, seq_id, b->udata, ci->udata);
                 } else {
-                    BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128,
-                        "LEAKING RESULT %p", (void *)&info->u.hold.result);
+                    BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128, "LEAKING RESULT %p", (void *)&info->u.hold.result);
                 }
             }
         }
         break;
     case RIS_EXPECT:
+        info->state = RIS_HEADINUSE; // pseudo lock
         BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
         BUS_ASSERT(b, b->udata, info->u.expect.box == NULL);
         break;
@@ -399,28 +401,43 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     }
 
     /* Set to no longer active and push on the freelist. */
-    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-        "releasing rx_info_t %d (%p), was %d",
-        info->id, (void *)info, info->state);
-
+    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "releasing rx_info_t %d (%p), was %d", info->id, (void *)info, info->state);
     BUS_ASSERT(b, b->udata, info->state != RIS_INACTIVE);
+
     info->state = RIS_INACTIVE;
     memset(&info->u, 0, sizeof(info->u));
-    info->next = l->rx_info_freelist;
-    l->rx_info_freelist = info;
 
+    // small integrity check:
+    assert(l->rx_info_freelist->id > -1);
+    assert(l->rx_info_freelist->next->id > -1);
+
+    do{
+        info->next = l->rx_info_freelist;
+        assert(info->next->id > -1);
+    }while( false == (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, info->next, info)));
+
+    // small integrity check:
+    assert(l->rx_info_freelist->id > -1);
+    assert(l->rx_info_freelist->next->id > -1);
+
+    if(info->id > 0 && l->rx_info_max_used == info->id){
+        ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_max_used, info->id, info->id-1);
+        // This needs improvement! See below:
+    }
+/*
     if (l->rx_info_max_used == info->id && info->id > 0) {
-        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-            "rx_info_max_used--, from %d to %d",
-            l->rx_info_max_used, l->rx_info_max_used - 1);
+        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "rx_info_max_used--, from %d to %d", l->rx_info_max_used, l->rx_info_max_used - 1);
         while (l->rx_info[l->rx_info_max_used].state == RIS_INACTIVE) {
-            l->rx_info_max_used--;
-            if (l->rx_info_max_used == 0) { break; }
+            __sync_fetch_and_sub(&l->rx_info_max_used, 1); // l->rx_info_max_used--;
+            if (l->rx_info_max_used == 0) { 
+                break;
+            }
         }
         BUS_ASSERT(b, b->udata, l->rx_info_max_used < MAX_PENDING_MESSAGES);
     }
+*/
 
-    l->rx_info_in_use--;
+    __sync_fetch_and_sub(&l->rx_info_in_use, 1);//    l->rx_info_in_use--;
 }
 
 void ListenerTask_ReleaseMsg(struct listener *l, listener_msg *msg) {
@@ -432,14 +449,10 @@ void ListenerTask_ReleaseMsg(struct listener *l, listener_msg *msg) {
         listener_msg *fl = l->msg_freelist;
         msg->next = fl;
         if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, fl, msg)) {
-            for (;;) {
-                int16_t miu = l->msgs_in_use;
-                if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msgs_in_use, miu, miu - 1)) {
-                    BUS_ASSERT(b, b->udata, miu >= 0);
-                    BUS_LOG(b, 3, LOG_LISTENER, "Releasing msg", b->udata);
-                    return;
-                }
-            }
+                __sync_fetch_and_sub(&l->msgs_in_use, 1);
+                BUS_ASSERT(b, b->udata, l->msgs_in_use >= 0);
+                BUS_LOG(b, 3, LOG_LISTENER, "Releasing msg", b->udata);
+                return;
         }
     }
 }
@@ -509,8 +522,7 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
             "successfully delivered box %p (seq_id:%lld), marking info %d as DONE",
             (void*)box, (long long)seq_id, info->id);
         info->u.expect.error = RX_ERROR_DONE;
-        BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 128,
-            "initial clean-up attempt for completed RX event at info +%d", info->id);
+        BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 128, "initial clean-up attempt for completed RX event at info +%d", info->id);
         clean_up_completed_info(l, info);
         info = NULL; /* drop out of scope, likely to be stale */
     } else {
@@ -558,6 +570,5 @@ uint16_t ListenerTask_GetBackpressure(struct listener *l) {
         "lbp: %u, %u (iu %u), %u",
         msg_fill_pressure, rx_info_fill_pressure, l->rx_info_in_use, threadpool_fill_pressure);
 
-    return msg_fill_pressure + rx_info_fill_pressure
-      + threadpool_fill_pressure;
+    return msg_fill_pressure + rx_info_fill_pressure  + threadpool_fill_pressure;
 }
