@@ -26,4 +26,6 @@ void ListenerCmd_NotifyCaller(listener *l, int fd);
 /** Process incoming commands, if any. */
 void ListenerCmd_CheckIncomingMessages(listener *l, int *res);
 
+void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg);
+
 #endif

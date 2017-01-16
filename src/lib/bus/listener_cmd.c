@@ -26,7 +26,6 @@
 #include "listener_task.h"
 #include "listener_helper.h"
 
-static void msg_handler(listener *l, listener_msg *pmsg);
 static void add_socket(listener *l, connection_info *ci, int notify_fd);
 static void remove_socket(listener *l, int fd, int notify_fd);
 static void hold_response(listener *l, int fd, int64_t seq_id, int16_t timeout_sec, int notify_fd);
@@ -108,10 +107,10 @@ void ListenerCmd_CheckIncomingMessages(listener *l, int *res) {
     }
 }
 
-static void msg_handler(listener *l, listener_msg *pmsg) {
+void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
     struct bus *b = l->bus;
-    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 128,
-        "Handling message -- %p, type %d", (void*)pmsg, pmsg->type);
+
+    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 128, "Handling message -- %p, type %d", (void*)pmsg, pmsg->type);
 
     l->is_idle = false;
 
@@ -255,34 +254,27 @@ static void remove_socket(listener *l, int fd, int notify_fd) {
     ListenerCmd_NotifyCaller(l, notify_fd);
 }
 
-static void hold_response(listener *l, int fd, int64_t seq_id,
-        int16_t timeout_sec, int notify_fd) {
+static void hold_response(listener *l, int fd, int64_t seq_id, int16_t timeout_sec, int notify_fd) {
     struct bus *b = l->bus;
-
-    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-        "hold_response <fd:%d, seq_id:%lld>", fd, (long long)seq_id);
+    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "hold_response <fd:%d, seq_id:%lld>", fd, (long long)seq_id);
 
     rx_info_t *info = ListenerHelper_GetFreeRXInfo(l);
     if (info == NULL) {
-        BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128,
-            "failed to get free rx_info for <fd:%d, seq_id:%lld>, dropping it",
-            fd, (long long)seq_id);
-        ListenerCmd_NotifyCaller(l, notify_fd);
+        BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128, "failed to get free rx_info for <fd:%d, seq_id:%lld>, dropping it", fd, (long long)seq_id);
+//      ListenerCmd_NotifyCaller(l, notify_fd); // The 'caller' actually calls the method directly now
         return;
     }
     BUS_ASSERT(b, b->udata, info);
-    BUS_ASSERT(b, b->udata, info->state == RIS_INACTIVE);
-    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,
-        "setting info %p(+%d) to hold response <fd:%d, seq_id:%lld>",
-        (void *)info, info->id, fd, (long long)seq_id);
 
+    BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "setting info %p(+%d) to hold response <fd:%d, seq_id:%lld>", (void *)info, info->id, fd, (long long)seq_id);
+    info->u.expect.box = NULL;
     info->state = RIS_HOLD;
     info->timeout_sec = timeout_sec;
     info->u.hold.fd = fd;
     info->u.hold.seq_id = seq_id;
     info->u.hold.has_result = false;
     memset(&info->u.hold.result, 0, sizeof(info->u.hold.result));
-    ListenerCmd_NotifyCaller(l, notify_fd);
+//  ListenerCmd_NotifyCaller(l, notify_fd); // The 'caller' actually calls the method directly now
 }
 
 static void expect_response(listener *l, struct boxed_msg *box) {
@@ -293,9 +285,12 @@ static void expect_response(listener *l, struct boxed_msg *box) {
         (void *)box, box->fd, (long long)box->out_seq_id);
 
     /* If there's a pending HOLD message, convert it. */
-    rx_info_t *info = ListenerHelper_FindInfoBySequenceID(l, box->fd, box->out_seq_id);
+    rx_info_t *info = ListenerHelper_FindInfoBySequenceID(l, box->fd, box->out_seq_id, RIS_HOLD);
     if (info && info->state == RIS_HOLD) {
         BUS_ASSERT(b, b->udata, info->state == RIS_HOLD);
+
+        info->u.expect.box = NULL;
+
         if (info->u.hold.error == RX_ERROR_NONE && info->u.hold.has_result) {
             bus_unpack_cb_res_t result = info->u.hold.result;
 
@@ -304,36 +299,35 @@ static void expect_response(listener *l, struct boxed_msg *box) {
                 info->id, (void *)info,
                 (void *)box, info->u.hold.fd, (long long)info->u.hold.seq_id);
 
-            info->state = RIS_EXPECT;
             info->u.expect.error = RX_ERROR_READY_FOR_DELIVERY;
             info->u.expect.box = box;
             info->u.expect.has_result = true;
             info->u.expect.result = result;
-            BUS_ASSERT(b, b->udata,
-                box->result.status != BUS_SEND_UNDEFINED);
+            info->state = RIS_EXPECT;
+            BUS_ASSERT(b, b->udata, box->result.status != BUS_SEND_UNDEFINED);
 
             ListenerTask_AttemptDelivery(l, info);
         } else if (info->u.hold.error != RX_ERROR_NONE) {
-            BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256,
-                "info %p (%d) with <box:%p, fd:%d, seq_id:%lld> has error %d",
+            BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256, "info %p (%d) with <box:%p, fd:%d, seq_id:%lld> has error %d",
                 (void *)info, info->id,
                 (void *)box, info->u.hold.fd, (long long)info->u.hold.seq_id, info->u.hold.error);
+
             rx_error_t error = info->u.hold.error;
             bus_unpack_cb_res_t result = info->u.hold.result;
-            info->state = RIS_EXPECT;
             info->u.expect.error = error;
             info->u.expect.result = result;
             info->u.expect.box = box;
+            info->state = RIS_EXPECT;
             ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_FAILURE);
         } else {
-            BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256,
-                "converting HOLD to EXPECT info %d (%p), attempting delivery <box:%p, fd:%d, seq_id:%lld>",
+            BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256, "converting HOLD to EXPECT info %d (%p), attempting delivery <box:%p, fd:%d, seq_id:%lld>",
                 info->id, (void *)info,
                 (void *)box, info->u.hold.fd, (long long)info->u.hold.seq_id);
-            info->state = RIS_EXPECT;
+
             info->u.expect.box = box;
             info->u.expect.error = RX_ERROR_NONE;
             info->u.expect.has_result = false;
+            info->state = RIS_EXPECT;
             /* Switch over to client's transferred timeout */
             info->timeout_sec = box->timeout_sec;
         }
@@ -341,8 +335,11 @@ static void expect_response(listener *l, struct boxed_msg *box) {
         /* Multiple identical EXPECTs should never happen, outside of
          * memory corruption in the queue. */
         assert(false);
-    } else {
+    } else if (info && info->state == RIS_HEADINUSE) {
+        // ROB: RIS_HEADINUSE is a transisiton state -> info is not yet completely enqueued 
+    }else {
         /* should never happen; just drop the message */
+        BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256, "Couldn't find info for box %p", (void *)box);
     }
 }
 
