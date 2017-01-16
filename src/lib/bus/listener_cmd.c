@@ -98,7 +98,7 @@ void ListenerCmd_CheckIncomingMessages(listener *l, int *res) {
                 for (ssize_t i = 0; i < rd; i++) {
                     uint8_t msg_id = cmd_buf[i];
                     listener_msg *msg = &l->msgs[msg_id];
-                    msg_handler(l, msg);
+                    ListenerCmd_msg_handler(l, msg);
                 }
                 (*res)--;
                 break;
