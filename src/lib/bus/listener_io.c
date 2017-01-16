@@ -245,8 +245,7 @@ static bool sink_socket_read(struct bus *b,
 
     ci->to_read_size = sres.next_read;
 
-    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-        "expecting next read to have %zd bytes", ci->to_read_size);
+    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64, "expecting next read to have %zd bytes", ci->to_read_size);
 
     /* Grow read buffer if necessary. */
     if (ci->to_read_size > l->read_buf_size) {
@@ -338,8 +337,8 @@ static void process_unpacked_message(listener *l,
     if (result.ok) {
         int64_t seq_id = result.u.success.seq_id;
         void *opaque_msg = result.u.success.msg;
-
-        rx_info_t *info = ListenerHelper_FindInfoBySequenceID(l, ci->fd, seq_id);
+        
+        rx_info_t *info = ListenerHelper_FindInfoBySequenceID(l, ci->fd, seq_id, -1);
 
         if (info) {
             switch (info->state) {
@@ -366,7 +365,8 @@ static void process_unpacked_message(listener *l,
                 BUS_ASSERT(b, b->udata, false);
             }
         } else {
-            /* We received a response that we weren't expecting. */
+            //fprintf(stderr, "We received a response that we weren't expecting.\n");
+            // This happens during the creation of a session
             if (seq_id != BUS_NO_SEQ_ID) {
                 BUS_LOG_SNPRINTF(b, 2 - 2, LOG_LISTENER, b->udata, 128,
                     "Couldn't find info for fd:%d, seq_id:%lld, msg %p",
