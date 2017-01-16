@@ -77,8 +77,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
     if (Util_Timestamp(&start, true)) {
         box->tv_send_start = start;
     } else {
-        BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128,
-            "gettimeofday failure: %d", errno);
+        BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128, "gettimeofday failure: %d", errno);
         return false;
     }
 
@@ -96,18 +95,18 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
      * EXPECT hasn't, leading to ambiguity about what to do with
      * the response (which may or may not have arrived).
      * */
-    if (!attempt_to_enqueue_HOLD_message_to_listener(b,
-            box->fd, box->out_seq_id, box->timeout_sec + 5)) {
+    if (!attempt_to_enqueue_HOLD_message_to_listener(b, box->fd, box->out_seq_id, box->timeout_sec + 5)) {
+        fprintf(stderr,"attempt_to_enqueue_HOLD_message_to_listener failed\n");
         return false;
     }
+
     assert(box->out_sent_size == 0);
 
     int rem_msec = timeout_msec;
 
     while (rem_msec > 0) {
         if (Util_Timestamp(&now, true)) {
-            size_t usec_elapsed = (((now.tv_sec - start.tv_sec) * 1000000)
-                + (now.tv_usec - start.tv_usec));
+            size_t usec_elapsed = (((now.tv_sec - start.tv_sec) * 1000000) + (now.tv_usec - start.tv_usec));
             size_t msec_elapsed = usec_elapsed / 1000;
 
             rem_msec = timeout_msec - msec_elapsed;
@@ -116,8 +115,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
              * already been sent; it will time out later. We need to treat
              * this like a TX failure (including closing the socket) because
              * we don't know what state the connection was left in. */
-            BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128,
-                "gettimeofday failure in poll loop: %d", errno);
+            BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128, "gettimeofday failure in poll loop: %d", errno);
             Send_HandleFailure(b, box, BUS_SEND_TX_FAILURE);
             return true;
         }
@@ -127,8 +125,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
         #endif
 	
         int res = syscall_poll(fds, 1, rem_msec); 
-        BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
-            "handle_write: poll res %d", res);
+        BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "handle_write: poll res %d", res);
         if (res == -1) {
             if (errno == EINTR || errno == EAGAIN) { /* interrupted/try again */
                 errno = 0;
@@ -140,21 +137,17 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
         } else if (res == 1) {
             short revents = fds[0].revents;
             if (revents & POLLNVAL) {
-                BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
-                    "do_blocking_send on %d: POLLNVAL => UNREGISTERED_SOCKET", box->fd);
+                BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "do_blocking_send on %d: POLLNVAL => UNREGISTERED_SOCKET", box->fd);
                 Send_HandleFailure(b, box, BUS_SEND_UNREGISTERED_SOCKET);
                 return true;
             } else if (revents & (POLLERR | POLLHUP)) {
-                BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
-                    "do_blocking_send on %d: POLLERR/POLLHUP => TX_FAILURE (%d)",
-                    box->fd, revents);
+                BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "do_blocking_send on %d: POLLERR/POLLHUP => TX_FAILURE (%d)", box->fd, revents);
                 Send_HandleFailure(b, box, BUS_SEND_TX_FAILURE);
                 return true;
             } else if (revents & POLLOUT) {
                 SendHelper_HandleWrite_res hw_res = SendHelper_HandleWrite(b, box);
 
-                BUS_LOG_SNPRINTF(b, 4, LOG_SENDER, b->udata, 256,
-                    "SendHelper_HandleWrite res %d", hw_res);
+                BUS_LOG_SNPRINTF(b, 4, LOG_SENDER, b->udata, 256, "SendHelper_HandleWrite res %d", hw_res);
 
                 switch (hw_res) {
                 case SHHW_OK:
@@ -165,8 +158,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
                     return false; // Rob: BUS_SEND_TX_TIMEOUT_NOTIFYING_LISTENER
                 }
             } else {
-                BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 256,
-                    "match fail %d", revents);
+                BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 256,"match fail %d", revents);
                 assert(false);  /* match fail */
             }
         } else if (res == 0) {  /* timeout */
@@ -174,33 +166,22 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
             break;
         }
     }
-    BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
-        "do_blocking_send on <fd:%d, seq_id:%lld>: TX_TIMEOUT",
-        box->fd, (long long)box->out_seq_id);
+    BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "do_blocking_send on <fd:%d, seq_id:%lld>: TX_TIMEOUT", box->fd, (long long)box->out_seq_id);
     Send_HandleFailure(b, box, BUS_SEND_TX_TIMEOUT);
     return true;
 }
 
-static bool attempt_to_enqueue_HOLD_message_to_listener(struct bus *b,
-    int fd, int64_t seq_id, int16_t timeout_sec) {
-    BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 128,
-      "telling listener to HOLD response, with <fd:%d, seq_id:%lld>",
-        fd, (long long)seq_id);
-
+static bool attempt_to_enqueue_HOLD_message_to_listener(struct bus *b, int fd, int64_t seq_id, int16_t timeout_sec) {
+    BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 128, "telling listener to HOLD response, with <fd:%d, seq_id:%lld>", fd, (long long)seq_id);
     struct listener *l = Bus_GetListenerForSocket(b, fd);
 
-    const int max_retries = SEND_NOTIFY_LISTENER_RETRIES;
-    for (int try = 0; try < max_retries; try++) {
+    for (;;) {
         #ifndef TEST
         int completion_pipe = -1;
         #endif
         if (Listener_HoldResponse(l, fd, seq_id, timeout_sec, &completion_pipe)) {
-            return true; //BusPoll_OnCompletion(b, completion_pipe); // ROB: lets not wait here
-        } else {
-            /* Don't apply much backpressure here since the client
-             * thread will get it when the message is done sending. */
-            //syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
-        }
+            return true; // Polling for completion not necessary here
+        } 
     }
     return false;
 }
