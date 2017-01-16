@@ -239,20 +239,18 @@ static bool enqueue_EXPECT_message_to_listener(bus *b, boxed_msg *box) {
 
     struct listener *l = Bus_GetListenerForSocket(b, box->fd);
 
-    for (int retries = 0; retries < SEND_NOTIFY_LISTENER_RETRIES; retries++) {
+    for (int retries = 0; ; retries++) {
         #ifndef TEST
         uint16_t backpressure = 0;
         #endif
         /* If this succeeds, then this thread cannot touch the box anymore. */
         if (Listener_ExpectResponse(l, box, &backpressure)) {
-            Bus_BackpressureDelay(b, backpressure,
-                LISTENER_EXPECT_BACKPRESSURE_SHIFT);
+            // don't apply backpressure 
             return true;
         } else {
             BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,"enqueue_request_sent: failed delivery %d", retries);
-            //syscall_poll(NULL, 0, SEND_NOTIFY_LISTENER_RETRY_DELAY);
             if(retries >= SEND_NOTIFY_LISTENER_RETRIES/2){
-                usleep(10);
+                usleep(10); // use sleep instead of poll
             }
         }
     }
