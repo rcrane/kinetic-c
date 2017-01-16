@@ -93,13 +93,13 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
 
     bus *b = calloc(1, sizeof(*b));
     if (b == NULL) { 
-	fprintf(stderr,"Bus calloc failed\n");
+	    fprintf(stderr,"Bus calloc failed\n");
 	goto cleanup;
     }
 
     if (!BusSSL_Init(b)) {
-	 fprintf(stderr,"BusSSL_Init failed\n");
-	 goto cleanup; 
+	    fprintf(stderr,"BusSSL_Init failed\n");
+        goto cleanup; 
     }
 
     b->sink_cb = config->sink_cb;
@@ -172,7 +172,7 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
             res->status = BUS_INIT_ERROR_PTHREAD_INIT_FAIL;
     	    fprintf(stderr,"Pthread create failed\n");
             goto cleanup;
-        }
+        } // else{ fprintf(stderr,"ListenerTask_MainLoop thread created\n");  }
     }
 
     b->fd_set = fds;
@@ -268,8 +268,7 @@ static boxed_msg *box_msg(struct bus *b, bus_user_msg *msg) {
 
     if (ci == NULL) {
         /* socket isn't registered, fail out */
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 64,
-            "socket isn't registered, failing -- %p", (void*)box);
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 64, "socket isn't registered, failing -- %p", (void*)box);
         free(box);
         return NULL;
     } else {
@@ -315,11 +314,11 @@ bool Bus_SendRequest(struct bus *b, bus_user_msg *msg)
         return false;
     }
 
-    BUS_LOG_SNPRINTF(b, 3-0, LOG_SENDING_REQUEST, b->udata, 64,
-        "Sending request <fd:%d, seq_id:%lld>", msg->fd, (long long)msg->seq_id);
+    BUS_LOG_SNPRINTF(b, 3-0, LOG_SENDING_REQUEST, b->udata, 64, "Sending request <fd:%d, seq_id:%lld>", msg->fd, (long long)msg->seq_id);
+
     bool res = Send_DoBlockingSend(b, box);
-    BUS_LOG_SNPRINTF(b, 3, LOG_SENDING_REQUEST, b->udata, 64,
-        "...request sent, result %d", res);
+
+    BUS_LOG_SNPRINTF(b, 3, LOG_SENDING_REQUEST, b->udata, 64, "...request sent, result %d", res);
 
     /* The send was rejected -- free the box, but don't call the error
      * handling callback. */
@@ -360,8 +359,7 @@ bool Bus_RegisterSocket(struct bus *b, bus_socket_t type, int fd, void *udata) {
     /* Register a socket internally with the listener. */
     int l_id = listener_id_of_socket(b, fd);
 
-    BUS_LOG_SNPRINTF(b, 2, LOG_SOCKET_REGISTERED, b->udata, 64,
-        "registering socket %d", fd);
+    BUS_LOG_SNPRINTF(b, 2, LOG_SOCKET_REGISTERED, b->udata, 64, "registering socket %d", fd);
 
     /* Spread sockets throughout the different listener threads. */
     struct listener *l = b->listeners[l_id];
@@ -412,6 +410,7 @@ bool Bus_RegisterSocket(struct bus *b, bus_socket_t type, int fd, void *udata) {
     if (!res) { goto cleanup; }
 
     BUS_LOG(b, 2, LOG_SOCKET_REGISTERED, "polling on socket add...", b->udata);
+    
     bool completed = BusPoll_OnCompletion(b, completion_pipe);
     if (!completed) { goto cleanup; }
 
@@ -441,11 +440,12 @@ bool Bus_ReleaseSocket(struct bus *b, int fd, void **socket_udata_out) {
         return false;           /* couldn't send msg to listener */
     }
 
-    assert(completion_pipe != -1);
-    bool completed = BusPoll_OnCompletion(b, completion_pipe);
-    if (!completed) {           /* listener hung up while waiting */
-        return false;
-    }
+//  Not polling for completion could lead to message loss if Bus_ReleaseSocket is called to early
+//    assert(completion_pipe != -1);
+//    bool completed = BusPoll_OnCompletion(b, completion_pipe);
+//    if (!completed) {           /* listener hung up while waiting */
+//        return false;
+//    }
 
     /* Lock hash table and forget whether this FD uses SSL. */
     #ifndef TEST
@@ -558,13 +558,17 @@ bool Bus_Shutdown(bus *b) {
 }
 
 void Bus_BackpressureDelay(struct bus *b, size_t backpressure, uint8_t shift) {
-    /* Push back if message bus is too busy. */
-    backpressure >>= shift;
 
+    // This seems to unessesary --> see nanosleeps in Listener_Helper 
+
+    /* Push back if message bus is too busy. 
+    backpressure >>= shift;
+    
     if (backpressure > 0) {
         BUS_LOG_SNPRINTF(b, 8, LOG_SENDER, b->udata, 64, "backpressure %zd", backpressure);
         syscall_poll(NULL, 0, backpressure);
     }
+    */
 }
 
 static void box_execute_cb(void *udata) {
