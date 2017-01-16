@@ -43,6 +43,7 @@ typedef enum {
     MSG_HOLD_RESPONSE,
     MSG_EXPECT_RESPONSE,
     MSG_SHUTDOWN,
+    MSG_HEADINUSE, // locking
 } MSG_TYPE;
 
 /** A queue message, with a command in the tagged union. */
@@ -84,6 +85,7 @@ typedef enum {
     RIS_HOLD = 1,
     RIS_EXPECT = 2,
     RIS_INACTIVE = 3,
+    RIS_HEADINUSE = 30,
 } rx_info_state;
 
 /** Record in table for partially processed messages. */
