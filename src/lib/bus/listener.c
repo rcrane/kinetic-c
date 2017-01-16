@@ -66,6 +66,9 @@ struct listener *Listener_Init(struct bus *b, struct bus_config *cfg) {
 
     for (int pipe_count = 0; pipe_count < MAX_QUEUE_MESSAGES; pipe_count++) {
         listener_msg *msg = &l->msgs[pipe_count];
+
+        msg->u.expect.box = NULL; // just to be sure
+
         uint8_t *p_id = (uint8_t *)&msg->id;
         *p_id = pipe_count;  /* Set (const) ID. */
 
@@ -128,36 +131,29 @@ bool Listener_HoldResponse(struct listener *l, int fd, int64_t seq_id, int16_t t
 
     bool pm_res = ListenerHelper_PushMessage(l, msg, notify_fd);
     if (!pm_res) {
-        BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128,
-            "Listener_HoldResponse with <fd:%d, seq_id:%lld> FAILED",
-            fd, (long long)seq_id);
+        BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128, "Listener_HoldResponse with <fd:%d, seq_id:%lld> FAILED", fd, (long long)seq_id);
     }
     return pm_res;
 }
 
-bool Listener_ExpectResponse(struct listener *l, boxed_msg *box,
-        uint16_t *backpressure) {
+bool Listener_ExpectResponse(struct listener *l, boxed_msg *box, uint16_t *backpressure) {
     listener_msg *msg = ListenerHelper_GetFreeMsg(l);
     struct bus *b = l->bus;
     if (msg == NULL) {
-        BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128,
-            "! ListenerHelper_GetFreeMsg fail %p", (void*)box);
+        BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128, "! ListenerHelper_GetFreeMsg fail %p", (void*)box);
         return false;
     }
 
-    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-        "Listener_ExpectResponse with box of %p, seq_id:%lld",
-        (void*)box, (long long)box->out_seq_id);
+    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "Listener_ExpectResponse with box of %p, seq_id:%lld", (void*)box, (long long)box->out_seq_id);
 
-    msg->type = MSG_EXPECT_RESPONSE;
     msg->u.expect.box = box;
-    *backpressure = ListenerTask_GetBackpressure(l);
+    msg->type = MSG_EXPECT_RESPONSE;
+    *backpressure = 0; // ROB ListenerTask_GetBackpressure(l);
     BUS_ASSERT(b, b->udata, box->result.status != BUS_SEND_UNDEFINED);
 
     bool pm = ListenerHelper_PushMessage(l, msg, NULL);
     if (!pm) {
-        BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128,
-            "! ListenerHelper_PushMessage fail %p", (void*)box);
+        BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128, "! ListenerHelper_PushMessage fail %p", (void*)box);
     }
     return pm;
 }
@@ -180,17 +176,17 @@ void Listener_Free(struct listener *l) {
             rx_info_t *info = &l->rx_info[i];
 
             switch (info->state) {
-            case RIS_INACTIVE:
-                break;
-            case RIS_HOLD:
-                break;
-            case RIS_EXPECT:
-                if (info->u.expect.box) {
-                    /* TODO: This can leak memory, since the caller's
-                     * callback is not being called. It should be called
-                     * with BUS_SEND_RX_FAILURE, if it's safe to do so. */
-                    free(info->u.expect.box);
-                    info->u.expect.box = NULL;
+                case RIS_INACTIVE:
+                    break;
+                case RIS_HOLD:
+                    break;
+                case RIS_EXPECT:
+                    if (info->u.expect.box) {
+                        /* TODO: This can leak memory, since the caller's
+                         * callback is not being called. It should be called
+                         * with BUS_SEND_RX_FAILURE, if it's safe to do so. */
+                        free(info->u.expect.box);
+                        info->u.expect.box = NULL;
                 }
                 break;
             default:
