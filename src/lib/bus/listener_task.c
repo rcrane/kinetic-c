@@ -506,7 +506,8 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     case RIS_INACTIVE:
         BUS_ASSERT(b, b->udata, false);
     }
-
+    
+    // to much concurrency seems to trigger this assertion:
     BUS_ASSERT(b, b->udata, unpacked_result.ok);
     int64_t seq_id = unpacked_result.u.success.seq_id;
     void *opaque_msg = unpacked_result.u.success.msg;
