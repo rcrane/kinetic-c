@@ -64,7 +64,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                         memset(&head->u, 0, sizeof(head->u));
 
                         if(loopcounter > 20){
-                            fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg\n", loopcounter);
+                            fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg %d\n", loopcounter);
                         }
                         return head;
                 }

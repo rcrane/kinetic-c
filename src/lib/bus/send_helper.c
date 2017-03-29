@@ -24,6 +24,7 @@
 #include "util.h"
 
 #include <assert.h>
+#include <unistd.h>
 
 static ssize_t write_plain(struct bus *b, boxed_msg *box);
 static ssize_t write_ssl(struct bus *b, boxed_msg *box, SSL *ssl);

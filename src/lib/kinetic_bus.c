@@ -51,6 +51,7 @@ static bus_sink_cb_res_t reset_transfer(socket_info *si) {
 STATIC bool unpack_header(uint8_t const * const read_buf, size_t const read_size, KineticPDUHeader * const header)
 {
     if (read_size != sizeof(KineticPDUHeader)) {
+        fprintf(stderr, "Error at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__); 
         return false;
         // TODO this will fail if we don't get all of the header bytes in one read
         // we should fix this
@@ -70,6 +71,7 @@ STATIC bool unpack_header(uint8_t const * const read_buf, size_t const read_size
         };
         return true;
     } else {
+        fprintf(stderr, "Error at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__); 
         return false;
     }
 }
@@ -80,11 +82,7 @@ STATIC bus_sink_cb_res_t sink_cb(uint8_t *read_buf,
     KineticSession * session = (KineticSession*)socket_udata;
     KINETIC_ASSERT(session);
     socket_info *si = session->si;
-    if(si == NULL){
-	// This is here to be able to set a breakpoint
-	assert(false);	
-    }
-    //KINETIC_ASSERT(si);
+    KINETIC_ASSERT(si);
 
     switch (si->state) {
     case STATE_UNINIT:
@@ -193,10 +191,14 @@ STATIC bus_unpack_cb_res_t unpack_cb(void *msg, void *socket_udata) {
     KineticResponse * response = KineticAllocator_NewKineticResponse(si->header.valueLength);
 
     if (response == NULL) {
+        fprintf(stderr, "Memory alloc error at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__); 
+        assert(false);  // fail fast
+
+        // in case assertions are disabled (NDEBUG):
         bus_unpack_cb_res_t res = {
-            .ok = false,
-            .u.error.opaque_error_id = UNPACK_ERROR_PAYLOAD_MALLOC_FAIL,
-        };
+                .ok = false,
+                .u.error.opaque_error_id = UNPACK_ERROR_PAYLOAD_MALLOC_FAIL,
+            };
         return res;
     } else {
         response->header = si->header;
