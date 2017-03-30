@@ -43,6 +43,7 @@ static bus_sink_cb_res_t reset_transfer(socket_info *si) {
 
     si->state = STATE_AWAITING_HEADER;
     si->accumulated = 0;
+    fprintf(stderr, "UNPACK_ERROR_UNDEFINED at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__);
     si->unpack_status = UNPACK_ERROR_UNDEFINED;
     memset(&si->header, 0x00, sizeof(si->header));
     return res;
@@ -109,6 +110,7 @@ STATIC bus_sink_cb_res_t sink_cb(uint8_t *read_buf,
                 return res;
             } else {
                 si->accumulated = 0;
+                fprintf(stderr, "UNPACK_ERROR_INVALID_HEADER error at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__);
                 si->unpack_status = UNPACK_ERROR_INVALID_HEADER;
                 si->state = STATE_AWAITING_HEADER;
                 bus_sink_cb_res_t res = {
@@ -182,6 +184,7 @@ STATIC bus_unpack_cb_res_t unpack_cb(void *msg, void *socket_udata) {
 
     if (si->unpack_status != UNPACK_ERROR_SUCCESS)
     {
+        fprintf(stderr, "unpack_status != UNPACK_ERROR_SUCCESS error at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__); 
         return (bus_unpack_cb_res_t) {
             .ok = false,
             .u.error.opaque_error_id = si->unpack_status,

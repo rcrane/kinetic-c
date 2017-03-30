@@ -507,6 +507,10 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
         BUS_ASSERT(b, b->udata, false);
     }
     
+    if(false == unpacked_result.ok){
+		fprintf(stderr, "Error ID: %d\n", unpacked_result.u.error.opaque_error_id);    	
+    }
+
     // too much concurrency seems to trigger this assertion:
     BUS_ASSERT(b, b->udata, unpacked_result.ok);
     int64_t seq_id = unpacked_result.u.success.seq_id;
