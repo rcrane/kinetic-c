@@ -43,7 +43,6 @@ static bus_sink_cb_res_t reset_transfer(socket_info *si) {
 
     si->state = STATE_AWAITING_HEADER;
     si->accumulated = 0;
-    fprintf(stderr, "UNPACK_ERROR_UNDEFINED at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__);
     si->unpack_status = UNPACK_ERROR_UNDEFINED;
     memset(&si->header, 0x00, sizeof(si->header));
     return res;
