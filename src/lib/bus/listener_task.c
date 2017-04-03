@@ -25,6 +25,10 @@
 #include "listener_cmd.h"
 #include "listener_io.h"
 #include "atomic.h"
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 
 #ifdef TEST
 struct timeval now;
@@ -507,8 +511,24 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
         BUS_ASSERT(b, b->udata, false);
     }
     
+    // try to fetch error before exception at line 535
     if(false == unpacked_result.ok){
 		fprintf(stderr, "Error ID: %d\n", unpacked_result.u.error.opaque_error_id);    	
+        /* Obtain a backtrace and print it to stdout. */
+
+        void *array[10];
+        size_t size;
+        char **strings;
+        size_t i;
+        size = backtrace (array, 10);
+        strings = backtrace_symbols (array, size);
+
+        fprintf (stderr, "Obtained %zd stack frames.\n", size);
+
+        for (i = 0; i < size; i++){
+            fprintf (stderr, "%s\n", strings[i]);
+        }
+        free (strings);
     }
 
     // too much concurrency seems to trigger this assertion:
