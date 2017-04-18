@@ -20,8 +20,8 @@
 #include "listener_cmd.h"
 #include "syscall.h"
 #include "atomic.h"
-#include "time.h"
 
+#include <time.h>
 #include <assert.h>
 
 #ifdef TEST
