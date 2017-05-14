@@ -113,6 +113,7 @@ bool Listener_RemoveSocket(struct listener *l, int fd, int *notify_fd) {
     return ListenerHelper_PushMessage(l, msg, notify_fd);
 }
 
+// Called from send.c - attempt_to_enqueue_HOLD_message_to_listener()
 bool Listener_HoldResponse(struct listener *l, int fd, int64_t seq_id, int16_t timeout_sec, int *notify_fd) {
     listener_msg *msg = ListenerHelper_GetFreeMsg(l);
     struct bus *b = l->bus;
