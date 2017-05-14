@@ -42,7 +42,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         while(miu >= MAX_QUEUE_MESSAGES){
                     struct timespec ts = {
                                 .tv_sec = 0,
-                                .tv_nsec = 20L * (1 + (miu-MAX_QUEUE_MESSAGES)),
+                                .tv_nsec = 200L * (1 + (miu-MAX_QUEUE_MESSAGES)),
                     };
                     nanosleep(&ts, NULL);
                     miu = l->msgs_in_use;
@@ -71,7 +71,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
 
                 struct timespec ts = {
                                 .tv_sec = 0,
-                                .tv_nsec = 20L,
+                                .tv_nsec = 200L,
                 };
                 nanosleep(&ts, NULL);
         }
@@ -106,7 +106,7 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
 
             struct timespec ts = {
                      .tv_sec = 0,
-                     .tv_nsec = 20L * l->rx_info_in_use,
+                     .tv_nsec = 100L * l->rx_info_in_use,
             };
             nanosleep(&ts, NULL);
 
