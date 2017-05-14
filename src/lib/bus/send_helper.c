@@ -250,9 +250,9 @@ static bool enqueue_EXPECT_message_to_listener(bus *b, boxed_msg *box) {
             return true;
         } else {
             BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,"enqueue_request_sent: failed delivery %d", retries);
-            if(retries >= SEND_NOTIFY_LISTENER_RETRIES/2){
-                usleep(10); // use sleep instead of poll
-            }
+            //if(retries >= SEND_NOTIFY_LISTENER_RETRIES/2){
+            //    usleep(10); // use sleep instead of poll
+            //}
         }
     }
 
