@@ -44,7 +44,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                                 .tv_sec = 0,
                                 .tv_nsec = 200L * (1 + (miu-MAX_QUEUE_MESSAGES)),
                     };
-                    nanosleep(&ts, NULL);
+                    //nanosleep(&ts, NULL);
                     miu = l->msgs_in_use;
                     loopcounter++;
         }
@@ -52,6 +52,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         listener_msg *head = l->msg_freelist;
 
         if (head == NULL) {
+            fprintf(stderr, "No free messages ListenerHelper_GetFreeMsg %d\n", loopcounter);
             BUS_LOG(b, 3, LOG_LISTENER, "No free messages!", b->udata);
             return NULL;
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
@@ -73,7 +74,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                                 .tv_sec = 0,
                                 .tv_nsec = 200L,
                 };
-                nanosleep(&ts, NULL);
+                //nanosleep(&ts, NULL);
         }
     }
 }
@@ -103,12 +104,12 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
     
         if (head == NULL) {
             BUS_LOG(b, 6, LOG_SENDER, "No rx_info cells left!", b->udata);
-
+            fprintf(stderr, "No free messages!\n");
             struct timespec ts = {
                      .tv_sec = 0,
                      .tv_nsec = 100L * l->rx_info_in_use,
             };
-            nanosleep(&ts, NULL);
+            //nanosleep(&ts, NULL);
 
         } else if(ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, head, head->next)) {
             __sync_synchronize(); // not sure if this is really necessary
