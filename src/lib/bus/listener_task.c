@@ -485,19 +485,16 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
 
     struct boxed_msg *box = info->u.expect.box;
     info->u.expect.box = NULL;  /* release */
-    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-        "attempting delivery of %p", (void*)box);
-    BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128,
-        "releasing box %p at line %d", (void*)box, __LINE__);
+
+    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64, "attempting delivery of %p", (void*)box);
+    BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128, "releasing box %p at line %d", (void*)box, __LINE__);
 
     bus_msg_result_t *result = &box->result;
     if (result->status == BUS_SEND_SUCCESS) {
     } else if (result->status == BUS_SEND_REQUEST_COMPLETE) {
         result->status = BUS_SEND_SUCCESS;
     } else {
-        BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128,
-            "unexpected status for completed RX event at info +%d, box %p, status %d",
-            info->id, (void *)box, result->status);
+        BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128, "unexpected status for completed RX event at info +%d, box %p, status %d", info->id, (void *)box, result->status);
     }
 
     bus_unpack_cb_res_t unpacked_result = {0, };
@@ -514,7 +511,7 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     
     // try to fetch error before exception at line 535
     if(false == unpacked_result.ok){
-		fprintf(stderr, "Error ID: %d\n", unpacked_result.u.error.opaque_error_id);    	
+		fprintf(stderr, "Error ID: %lu\n", unpacked_result.u.error.opaque_error_id);
         /* Obtain a backtrace and print it to stdout. 
 
         void *array[10];
@@ -531,6 +528,12 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
         }
         free (strings);
 	*/
+    }
+
+    int count = 30;
+    while(false == unpacked_result.ok && count > 0){
+        sched_yield();
+        count--;
     }
 
     // too much concurrency seems to trigger this assertion:

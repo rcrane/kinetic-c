@@ -57,7 +57,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
 
                 if (ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE)){
                         __sync_fetch_and_add(&l->msgs_in_use, 1);
-                        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
+                        //BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
 
                         BUS_ASSERT(b, b->udata, head->type == MSG_HEADINUSE);
                         memset(&head->u, 0, sizeof(head->u));
