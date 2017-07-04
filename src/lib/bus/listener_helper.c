@@ -44,7 +44,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                                 .tv_sec = 0,
                                 .tv_nsec = 100L * (1 + (miu-MAX_QUEUE_MESSAGES)),
                     };
-                    nanosleep(&ts, NULL);
+                    //nanosleep(&ts, NULL);
                     miu = l->msgs_in_use;
                     loopcounter++;
         }
