@@ -170,7 +170,7 @@ static void tick_handler(listener *l) {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
                     "decrementing countdown on info %p [%u]: %ld",
                     (void*)info, info->id, info->timeout_sec - 1);
-		fprintf(stderr, "Timeout %d\n", info->timeout_sec);
+		
                 info->timeout_sec--;
             }
             break;
@@ -209,7 +209,7 @@ static void tick_handler(listener *l) {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
                     "decrementing countdown on info %p [%u]: %ld",
                     (void*)info, info->id, info->timeout_sec - 1);
-		fprintf(stderr, "Timeout %d\n", info->timeout_sec);
+		
                 info->timeout_sec--;
             }
             break;
