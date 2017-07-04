@@ -39,7 +39,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         loopcounter++;
         miu = l->msgs_in_use;
         
-        while(miu >= MAX_QUEUE_MESSAGES){
+        while(miu >= MAX_QUEUE_MESSAGES*2/3){
                     sched_yield();
                     miu = l->msgs_in_use;
                     loopcounter++;
