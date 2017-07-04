@@ -44,7 +44,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                                 .tv_sec = 0,
                                 .tv_nsec = 100L * (1 + (miu-MAX_QUEUE_MESSAGES)),
                     };
-                    //nanosleep(&ts, NULL);
+                    nanosleep(&ts, NULL);
                     miu = l->msgs_in_use;
                     loopcounter++;
         }
@@ -54,12 +54,8 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         if (head == NULL) {
             //fprintf(stderr, "No free messages ListenerHelper_GetFreeMsg %d\n", loopcounter);
             //BUS_LOG(b, 3, LOG_LISTENER, "No free messages!", b->udata);
-            //return NULL;
-            struct timespec ts = {
-                            .tv_sec = 0,
-                            .tv_nsec = 500L,
-            };
-            nanosleep(&ts, NULL);
+            return NULL;
+            
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
 
                 if (ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE)){
@@ -77,9 +73,9 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
 
                 struct timespec ts = {
                                 .tv_sec = 0,
-                                .tv_nsec = 200L,
+                                .tv_nsec = 100L,
                 };
-                //nanosleep(&ts, NULL);
+                nanosleep(&ts, NULL);
         }
     }
 }
