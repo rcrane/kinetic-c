@@ -498,43 +498,25 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     }
 
     bus_unpack_cb_res_t unpacked_result = {0, };
-    switch (info->state) {
-    case RIS_EXPECT:
-        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
-        unpacked_result = info->u.expect.result;
-        break;
-    default:
-    case RIS_HOLD:
-    case RIS_INACTIVE:
-        BUS_ASSERT(b, b->udata, false);
-    }
-    
-    // try to fetch error before exception at line 535
-    if(false == unpacked_result.ok){
-		fprintf(stderr, "Error ID: %lu\n", unpacked_result.u.error.opaque_error_id);
-        /* Obtain a backtrace and print it to stdout. 
-
-        void *array[10];
-        size_t size;
-        char **strings;
-        size_t i;
-        size = backtrace (array, 10);
-        strings = backtrace_symbols (array, size);
-
-        fprintf (stderr, "Obtained %zd stack frames.\n", size);
-
-        for (i = 0; i < size; i++){
-            fprintf (stderr, "%s\n", strings[i]);
-        }
-        free (strings);
-	*/
-    }
-
-    int count = 30;
-    while(false == unpacked_result.ok && count > 0){
-        sched_yield();
-        count--;
-    }
+    int count = 50000;
+    do{
+	    switch (info->state) {
+		    case RIS_EXPECT:
+		        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
+		        unpacked_result = info->u.expect.result;
+		        break;
+		    default:
+		    case RIS_HOLD:
+		    case RIS_INACTIVE:
+		        BUS_ASSERT(b, b->udata, false);
+	    }
+	       
+	    if(false == unpacked_result.ok){
+	        sched_yield();
+	    }
+	    count--;
+	}    
+    while(false == unpacked_result.ok && count > 0);
 
     // too much concurrency seems to trigger this assertion:
     BUS_ASSERT(b, b->udata, unpacked_result.ok);
