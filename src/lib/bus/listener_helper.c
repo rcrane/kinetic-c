@@ -57,7 +57,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
             //return NULL;
             struct timespec ts = {
                             .tv_sec = 0,
-                            .tv_nsec = 1000L * delay,
+                            .tv_nsec = 1000L,
             };
             nanosleep(&ts, NULL);
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
