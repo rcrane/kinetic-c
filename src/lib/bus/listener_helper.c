@@ -42,7 +42,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         while(miu >= MAX_QUEUE_MESSAGES){
                     struct timespec ts = {
                                 .tv_sec = 0,
-                                .tv_nsec = 200L * (1 + (miu-MAX_QUEUE_MESSAGES)),
+                                .tv_nsec = 100L * (1 + (miu-MAX_QUEUE_MESSAGES)),
                     };
                     nanosleep(&ts, NULL);
                     miu = l->msgs_in_use;
@@ -57,7 +57,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
             //return NULL;
             struct timespec ts = {
                             .tv_sec = 0,
-                            .tv_nsec = 1000L,
+                            .tv_nsec = 500L,
             };
             nanosleep(&ts, NULL);
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
@@ -79,7 +79,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                                 .tv_sec = 0,
                                 .tv_nsec = 200L,
                 };
-                nanosleep(&ts, NULL);
+                //nanosleep(&ts, NULL);
         }
     }
 }
