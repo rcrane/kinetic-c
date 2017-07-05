@@ -99,12 +99,13 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
     
         if (head == NULL) {
             BUS_LOG(b, 6, LOG_SENDER, "No rx_info cells left!", b->udata);
-            fprintf(stderr, "No free messages!\n");
+            //fprintf(stderr, "No free messages!\n");
             struct timespec ts = {
                      .tv_sec = 0,
                      .tv_nsec = 100L * l->rx_info_in_use,
             };
             //nanosleep(&ts, NULL);
+            sched_yield();
 
         } else if(ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, head, head->next)) {
             __sync_synchronize(); // not sure if this is really necessary
