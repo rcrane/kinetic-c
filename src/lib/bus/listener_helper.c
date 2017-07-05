@@ -55,8 +55,8 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         if (head == NULL) {
             //fprintf(stderr, "No free messages ListenerHelper_GetFreeMsg %d\n", loopcounter);
             //BUS_LOG(b, 3, LOG_LISTENER, "No free messages!", b->udata);
-            //return NULL;
-            sched_yield();
+            return NULL;
+            //sched_yield();
             
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
 
