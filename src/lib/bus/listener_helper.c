@@ -40,7 +40,12 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         miu = l->msgs_in_use;
         
         while(miu >= MAX_QUEUE_MESSAGES){
-                    sched_yield();
+                     struct timespec ts = {
+                     .tv_sec = 0,
+                     .tv_nsec = 100L * miu,
+                    };
+                    nanosleep(&ts, NULL);
+                    //sched_yield();
                     miu = l->msgs_in_use;
                     loopcounter++;
         }
