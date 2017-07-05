@@ -44,7 +44,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                      .tv_sec = 0,
                      .tv_nsec = 100L * miu,
                     };
-                    nanosleep(&ts, NULL);
+                    //nanosleep(&ts, NULL);
                     //sched_yield();
                     miu = l->msgs_in_use;
                     loopcounter++;
@@ -73,7 +73,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                         return head;
                 }
 
-                sched_yield();
+                //sched_yield();
                 
         }
     }
