@@ -218,7 +218,9 @@ static void tick_handler(listener *l) {
             BUS_ASSERT(b, b->udata, false);
         }
     }
-    if (!any_work) { l->is_idle = true; }
+    if (!any_work) { 
+        __sync_lock_test_and_set(&(l->is_idle), true);
+    }
 }
 
 void ListenerTask_DumpRXInfoTable(listener *l) {

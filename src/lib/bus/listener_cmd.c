@@ -112,7 +112,7 @@ void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
 
     BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 128, "Handling message -- %p, type %d", (void*)pmsg, pmsg->type);
 
-    l->is_idle = false;
+	__sync_lock_test_and_set(&(l->is_idle), false);
 
     listener_msg msg = *pmsg;
     switch (msg.type) {
