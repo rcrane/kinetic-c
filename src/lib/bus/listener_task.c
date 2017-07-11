@@ -217,7 +217,9 @@ static void tick_handler(listener *l) {
             BUS_ASSERT(b, b->udata, false);
         }
     }
-    if (!any_work) { l->is_idle = true; }
+    if (!any_work) { 
+    	__sync_bool_compare_and_swap(&(l->is_idle), false, true);
+    }
 }
 
 void ListenerTask_DumpRXInfoTable(listener *l) {
@@ -491,13 +493,13 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
         "releasing box %p at line %d", (void*)box, __LINE__);
 
     bus_msg_result_t *result = &box->result;
-    if (result->status == BUS_SEND_SUCCESS) {
-    } else if (result->status == BUS_SEND_REQUEST_COMPLETE) {
-        result->status = BUS_SEND_SUCCESS;
-    } else {
-        BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128,
-            "unexpected status for completed RX event at info +%d, box %p, status %d",
-            info->id, (void *)box, result->status);
+
+    if (result->status != BUS_SEND_SUCCESS) {
+    
+	    if(false == __sync_bool_compare_and_swap(&(result->status), BUS_SEND_REQUEST_COMPLETE, BUS_SEND_SUCCESS)){
+	    	fprintf(stderr, "unexpected status for completed RX event at info: %d\n", result->status);
+    	    BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128, "unexpected status for completed RX event at info +%d, box %p, status %d", info->id, (void *)box, result->status);
+    	}
     }
 
     bus_unpack_cb_res_t unpacked_result = {0, };
