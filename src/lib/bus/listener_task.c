@@ -170,6 +170,7 @@ static void tick_handler(listener *l) {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
                     "decrementing countdown on info %p [%u]: %ld",
                     (void*)info, info->id, info->timeout_sec - 1);
+		
                 info->timeout_sec--;
             }
             break;
@@ -487,10 +488,9 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
 
     struct boxed_msg *box = info->u.expect.box;
     info->u.expect.box = NULL;  /* release */
-    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-        "attempting delivery of %p", (void*)box);
-    BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128,
-        "releasing box %p at line %d", (void*)box, __LINE__);
+
+    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64, "attempting delivery of %p", (void*)box);
+    BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128, "releasing box %p at line %d", (void*)box, __LINE__);
 
     bus_msg_result_t *result = &box->result;
 
@@ -503,37 +503,25 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     }
 
     bus_unpack_cb_res_t unpacked_result = {0, };
-    switch (info->state) {
-    case RIS_EXPECT:
-        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
-        unpacked_result = info->u.expect.result;
-        break;
-    default:
-    case RIS_HOLD:
-    case RIS_INACTIVE:
-        BUS_ASSERT(b, b->udata, false);
-    }
-    
-    // try to fetch error before exception at line 535
-    if(false == unpacked_result.ok){
-		fprintf(stderr, "Error ID: %d\n", unpacked_result.u.error.opaque_error_id);    	
-        /* Obtain a backtrace and print it to stdout. 
-
-        void *array[10];
-        size_t size;
-        char **strings;
-        size_t i;
-        size = backtrace (array, 10);
-        strings = backtrace_symbols (array, size);
-
-        fprintf (stderr, "Obtained %zd stack frames.\n", size);
-
-        for (i = 0; i < size; i++){
-            fprintf (stderr, "%s\n", strings[i]);
-        }
-        free (strings);
-	*/
-    }
+    int count = 50000;
+    do{
+	    switch (info->state) {
+		    case RIS_EXPECT:
+		        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
+		        unpacked_result = info->u.expect.result;
+		        break;
+		    default:
+		    case RIS_HOLD:
+		    case RIS_INACTIVE:
+		        BUS_ASSERT(b, b->udata, false);
+	    }
+	       
+	    if(false == unpacked_result.ok){
+	        sched_yield();
+	    }
+	    count--;
+	}    
+    while(false == unpacked_result.ok && count > 0);
 
     // too much concurrency seems to trigger this assertion:
     BUS_ASSERT(b, b->udata, unpacked_result.ok);

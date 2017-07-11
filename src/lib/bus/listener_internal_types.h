@@ -122,7 +122,7 @@ typedef struct rx_info_t {
 #define MAX_PENDING_MESSAGES (1024)
 
 /** Max number of unprocessed queue messages */
-#define MAX_QUEUE_MESSAGES (8)
+#define MAX_QUEUE_MESSAGES (64)
 typedef uint32_t msg_flag_t;
 
 /** Special value meaning poll should block indefinitely. */
@@ -146,7 +146,7 @@ typedef struct listener {
     /* Pipes used to wake the sleeping listener on queue input. */
     int commit_pipe;
     int incoming_msg_pipe;
-    bool is_idle;
+    volatile bool is_idle;
 
     rx_info_t rx_info[MAX_PENDING_MESSAGES];
     rx_info_t *rx_info_freelist;

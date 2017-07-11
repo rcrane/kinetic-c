@@ -40,11 +40,12 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         miu = l->msgs_in_use;
         
         while(miu >= MAX_QUEUE_MESSAGES){
-                    struct timespec ts = {
-                                .tv_sec = 0,
-                                .tv_nsec = 200L * (1 + (miu-MAX_QUEUE_MESSAGES)),
+                     struct timespec ts = {
+                     .tv_sec = 0,
+                     .tv_nsec = 100L * miu,
                     };
-                    nanosleep(&ts, NULL);
+                    //nanosleep(&ts, NULL);
+                    //sched_yield();
                     miu = l->msgs_in_use;
                     loopcounter++;
         }
@@ -52,13 +53,16 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
         listener_msg *head = l->msg_freelist;
 
         if (head == NULL) {
-            BUS_LOG(b, 3, LOG_LISTENER, "No free messages!", b->udata);
+            //fprintf(stderr, "No free messages ListenerHelper_GetFreeMsg %d\n", loopcounter);
+            //BUS_LOG(b, 3, LOG_LISTENER, "No free messages!", b->udata);
             return NULL;
+            //sched_yield();
+            
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
 
                 if (ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE)){
                         __sync_fetch_and_add(&l->msgs_in_use, 1);
-                        BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
+                        //BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
 
                         BUS_ASSERT(b, b->udata, head->type == MSG_HEADINUSE);
                         memset(&head->u, 0, sizeof(head->u));
@@ -69,11 +73,8 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                         return head;
                 }
 
-                struct timespec ts = {
-                                .tv_sec = 0,
-                                .tv_nsec = 200L,
-                };
-                nanosleep(&ts, NULL);
+                //sched_yield();
+                
         }
     }
 }
@@ -103,12 +104,13 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
     
         if (head == NULL) {
             BUS_LOG(b, 6, LOG_SENDER, "No rx_info cells left!", b->udata);
-
+            //fprintf(stderr, "No free messages!\n");
             struct timespec ts = {
                      .tv_sec = 0,
                      .tv_nsec = 100L * l->rx_info_in_use,
             };
-            nanosleep(&ts, NULL);
+            //nanosleep(&ts, NULL);
+            sched_yield();
 
         } else if(ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, head, head->next)) {
             __sync_synchronize(); // not sure if this is really necessary
