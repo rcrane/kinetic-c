@@ -98,7 +98,9 @@ void ListenerCmd_CheckIncomingMessages(listener *l, int *res) {
                 for (ssize_t i = 0; i < rd; i++) {
                     uint8_t msg_id = cmd_buf[i];
                     listener_msg *msg = &l->msgs[msg_id];
+                    assert(msg);
                     ListenerCmd_msg_handler(l, msg);
+                    ListenerTask_ReleaseMsg(l, msg);
                 }
                 (*res)--;
                 break;
@@ -122,7 +124,7 @@ void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
         break;
     case MSG_REMOVE_SOCKET:
         remove_socket(l, msg.u.remove_socket.fd, msg.u.remove_socket.notify_fd);
-        break;
+        break;enqueue_EXPECT_message_to_listener
     case MSG_HOLD_RESPONSE:
         hold_response(l, msg.u.hold.fd, msg.u.hold.seq_id,
             msg.u.hold.timeout_sec, msg.u.hold.notify_fd);
@@ -140,7 +142,7 @@ void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
         BUS_ASSERT(b, b->udata, false);
         break;
     }
-    ListenerTask_ReleaseMsg(l, pmsg);
+    //ListenerTask_ReleaseMsg(l, pmsg); moved to ListenerCmd_CheckIncomingMessages
 }
 
 /* Swap poll and connection info for tracked sockets, by array offset. */
