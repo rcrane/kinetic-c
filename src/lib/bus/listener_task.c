@@ -32,13 +32,13 @@
 
 
 #ifdef TEST
-struct timeval now;
-struct timeval cur;
-size_t backpressure = 0;
-int poll_res = 0;
-#define WHILE if
+    struct timeval now;
+    struct timeval cur;
+    size_t backpressure = 0;
+    int poll_res = 0;
+    #define WHILE if
 #else
-#define WHILE while
+    #define WHILE while
 #endif
 
 static void tick_handler(listener *l);
@@ -75,7 +75,10 @@ void *ListenerTask_MainLoop(void *arg) {
             last_sec = cur_sec;
         }
 
-        int delay = (self->is_idle ? INFINITE_DELAY : LISTENER_TASK_TIMEOUT_DELAY);
+        bool idle = true,
+         __atomic_load (&(self->is_idle), &idle, __ATOMIC_RELAXED);
+        int delay = (idle ? INFINITE_DELAY : LISTENER_TASK_TIMEOUT_DELAY);
+
         #ifndef TEST
         int poll_res = 0;
         #endif
