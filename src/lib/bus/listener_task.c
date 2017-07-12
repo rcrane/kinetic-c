@@ -75,7 +75,7 @@ void *ListenerTask_MainLoop(void *arg) {
             last_sec = cur_sec;
         }
 
-        bool idle = true,
+        bool idle = true;
          __atomic_load(&(self->is_idle), &idle, __ATOMIC_RELAXED);
         int delay = (idle ? INFINITE_DELAY : LISTENER_TASK_TIMEOUT_DELAY);
 
