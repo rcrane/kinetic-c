@@ -124,7 +124,7 @@ void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
         break;
     case MSG_REMOVE_SOCKET:
         remove_socket(l, msg.u.remove_socket.fd, msg.u.remove_socket.notify_fd);
-        break;enqueue_EXPECT_message_to_listener
+        break;
     case MSG_HOLD_RESPONSE:
         hold_response(l, msg.u.hold.fd, msg.u.hold.seq_id,
             msg.u.hold.timeout_sec, msg.u.hold.notify_fd);
