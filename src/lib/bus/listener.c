@@ -208,9 +208,9 @@ void Listener_Free(struct listener *l) {
                 break;
             case MSG_EXPECT_RESPONSE:
             	// double free bus.c:581
-                if (msg->u.expect.box) { 
-                	fprintf(stderr, "ListenerFree: %p\n", msg->u.expect.box);	
-                	free(msg->u.expect.box); }
+                if (msg->u.expect.box != NULL) {
+                   	free(msg->u.expect.box); 
+                }
                 break;
             default:
                 break;
