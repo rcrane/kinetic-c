@@ -577,7 +577,7 @@ static void box_execute_cb(void *udata) {
     void *out_udata = box->udata;
     bus_msg_result_t res = box->result;
     bus_msg_cb *cb = box->cb;
-
+    free(box);
     // cb = callback -> KineticController_HandleResult
     cb(&res, out_udata);
 }
