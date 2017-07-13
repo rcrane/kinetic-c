@@ -207,6 +207,7 @@ void Listener_Free(struct listener *l) {
                 ListenerCmd_NotifyCaller(l, msg->u.remove_socket.notify_fd);
                 break;
             case MSG_EXPECT_RESPONSE:
+            	// double free bus.c:581
                 if (msg->u.expect.box) { free(msg->u.expect.box); }
                 break;
             default:

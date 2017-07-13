@@ -277,6 +277,9 @@ bool KineticBus_Init(KineticClient * client, KineticClientConfig * config)
 void KineticBus_Shutdown(KineticClient * const client)
 {
     if (client) {
+        // a wacky attemp to avoid a double free race
+        sched_yield();
+        sched_yield();
         Bus_Shutdown(client->bus);
         Bus_Free(client->bus);
         client->bus = NULL;
