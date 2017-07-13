@@ -111,7 +111,7 @@ void ListenerCmd_CheckIncomingMessages(listener *l, int *res) {
 
 void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
     struct bus *b = l->bus;
-
+     fprintf(stderr, "ListenerCmd_msg_handler: %p\n", pmsg);
     BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 128, "Handling message -- %p, type %d", (void*)pmsg, pmsg->type);
 
     __sync_bool_compare_and_swap(&(l->is_idle), true, false);

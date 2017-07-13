@@ -199,6 +199,7 @@ void Listener_Free(struct listener *l) {
 
         for (int i = 0; i < MAX_QUEUE_MESSAGES; i++) {
             listener_msg *msg = &l->msgs[i];
+            fprintf(stderr, "Listener_Free: %p\n", msg);
             switch (msg->type) {
             case MSG_ADD_SOCKET:
                 ListenerCmd_NotifyCaller(l, msg->u.add_socket.notify_fd);
