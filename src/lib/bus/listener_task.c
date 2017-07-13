@@ -454,6 +454,7 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
 void ListenerTask_ReleaseMsg(struct listener *l, listener_msg *msg) {
     struct bus *b = l->bus;
     BUS_ASSERT(b, b->udata, msg->id < MAX_QUEUE_MESSAGES);
+    fprintf(stderr, "ListenerTask_ReleaseMsg: %p\n", msg);
     msg->type = MSG_NONE;
 
     for (;;) {
