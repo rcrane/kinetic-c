@@ -37,15 +37,9 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
     
     for (;;) {
         loopcounter++;
-        miu = l->msgs_in_use;
-        
-        while(miu >= MAX_QUEUE_MESSAGES){
-                     struct timespec ts = {
-                     .tv_sec = 0,
-                     .tv_nsec = 100L * miu,
-                    };
-                    //nanosleep(&ts, NULL);
-                    //sched_yield();
+               
+        while(l->msgs_in_use >= MAX_QUEUE_MESSAGES){         
+                    sched_yield();
                     miu = l->msgs_in_use;
                     loopcounter++;
         }
@@ -67,7 +61,7 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
                         BUS_ASSERT(b, b->udata, head->type == MSG_HEADINUSE);
                         memset(&head->u, 0, sizeof(head->u));
 
-                        if(loopcounter > 20){
+                        if(loopcounter > 200){
                             fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg %d\n", loopcounter);
                         }
                         return head;
@@ -75,6 +69,9 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
 
                 //sched_yield();
                 
+        }
+        if(loopcounter > 15){
+            sched_yield();
         }
     }
 }
@@ -114,6 +111,9 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
 
         } else if(ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, head, head->next)) {
             __sync_synchronize(); // not sure if this is really necessary
+            if(head->state != RIS_INACTIVE){
+                fprintf(stderr, "HEAD->state: %d\n", head->state);
+            }
             BUS_ASSERT(b, b->udata, head->state == RIS_INACTIVE);
             assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->state), RIS_INACTIVE, RIS_HEADINUSE));
             head->next = NULL;
@@ -121,10 +121,15 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
 
             BUS_LOG(l->bus, 4, LOG_LISTENER, "reserving RX info", l->bus->udata);
 
-            if (l->rx_info_max_used < head->id) {
+            uint16_t mxused = 0;
+            __atomic_load(&(l->rx_info_max_used), &mxused, __ATOMIC_RELAXED);
+            
+            if (mxused < head->id) {
                 BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "rx_info_max_used <- %d", head->id);
-                l->rx_info_max_used = head->id;
-                BUS_ASSERT(b, b->udata, l->rx_info_max_used < MAX_PENDING_MESSAGES);
+
+                __atomic_store(&(l->rx_info_max_used), (uint16_t*)(&head->id), __ATOMIC_RELAXED);
+                
+                BUS_ASSERT(b, b->udata, mxused < MAX_PENDING_MESSAGES);
             }
 
             BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "got free rx_info_t %d (%p)", head->id, (void *)head);
