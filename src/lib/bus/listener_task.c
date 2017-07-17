@@ -45,6 +45,7 @@ static void tick_handler(listener *l);
 static void clean_up_completed_info(listener *l, rx_info_t *info);
 static void retry_delivery(listener *l, rx_info_t *info);
 static void observe_backpressure(listener *l, size_t backpressure);
+static void ListenerTask_CountMessages(struct listener* l);
 
 void *ListenerTask_MainLoop(void *arg) {
     
@@ -64,7 +65,10 @@ void *ListenerTask_MainLoop(void *arg) {
      * communication is managed at the command interface, so it doesn't
      * need any internal locking. */
 
-    WHILE (self->shutdown_notify_fd == LISTENER_NO_FD) {
+	int sdnfd = 0;
+    __atomic_load(&(self->shutdown_notify_fd), &sdnfd, __ATOMIC_RELAXED);
+            
+    WHILE (sdnfd == LISTENER_NO_FD) {
         if (!Util_Timestamp(&now, true)) {
             BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64,
                 "timestamp failure: %d", errno);
@@ -83,9 +87,12 @@ void *ListenerTask_MainLoop(void *arg) {
         int poll_res = 0;
         #endif
 
-        int to_poll = self->tracked_fds - self->inactive_fds + INCOMING_MSG_PIPE;
+        uint16_t to_poll = 0;
+        __atomic_load(&(self->tracked_fds), &to_poll, __ATOMIC_RELAXED);
 
-        poll_res = syscall_poll(self->fds, to_poll, delay);
+        to_poll = to_poll - self->inactive_fds + INCOMING_MSG_PIPE;
+
+        poll_res = syscall_poll(self->fds, to_poll, delay); // atomic fds
         BUS_LOG_SNPRINTF(b, (poll_res == 0 ? 6 : 4), LOG_LISTENER, b->udata, 64,
             "poll res %d", poll_res);
 
@@ -105,19 +112,23 @@ void *ListenerTask_MainLoop(void *arg) {
         } else {
             /* nothing to do */
         }
+        __atomic_load(&(self->shutdown_notify_fd), &sdnfd, __ATOMIC_RELAXED);
     }
 
+    __atomic_load(&(self->shutdown_notify_fd), &sdnfd, __ATOMIC_RELAXED);
     /* (This will always be true, except when testing.) */
-    if (self->shutdown_notify_fd != LISTENER_NO_FD) {
+    if (sdnfd != LISTENER_NO_FD) {
         BUS_LOG(b, 3, LOG_LISTENER, "shutting down", b->udata);
 
         if (self->tracked_fds > 0) {
             BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64,
                 "%d connections still open!", self->tracked_fds);
         }
-
+    
         ListenerCmd_NotifyCaller(self, self->shutdown_notify_fd);
-        self->shutdown_notify_fd = LISTENER_SHUTDOWN_COMPLETE_FD;
+        sdnfd = LISTENER_SHUTDOWN_COMPLETE_FD;
+        __atomic_store(&(self->shutdown_notify_fd), &sdnfd, __ATOMIC_RELAXED);
+        
     }
 
     BUS_LOG(b, 3, LOG_LISTENER, "shutting down...", b->udata);
@@ -141,10 +152,14 @@ static void tick_handler(listener *l) {
 
     if (b->log_level > 5 || 0) { ListenerTask_DumpRXInfoTable(l); }
 
+	rx_info_state currentstate = RIS_INACTIVE;
+    //rx_info_max_used should probably be accessed atomically
     for (int i = 0; i <= l->rx_info_max_used; i++) {
         rx_info_t *info = &l->rx_info[i];
 
-        switch (info->state) {
+        __atomic_load(&(info->state), &currentstate, __ATOMIC_RELAXED);
+
+        switch (currentstate) {
         case RIS_HEADINUSE:
         case RIS_INACTIVE:
             break;
@@ -167,7 +182,7 @@ static void tick_handler(listener *l) {
                     (void*)info, info->u.hold.fd, (long long)info->u.hold.seq_id,
                     (long)cur.tv_sec, (long)cur.tv_usec);
 
-                fprintf(stderr, "Timeout -> ListenerTask_ReleaseRXInfo %d\n", info->id);
+                fprintf(stderr, "Hold Timeout -> ListenerTask_ReleaseRXInfo %d %lld %d\n",  info->u.hold.fd, (long long)info->u.hold.seq_id, info->u.hold.error );
                 ListenerTask_ReleaseRXInfo(l, info);
             } else {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
@@ -179,13 +194,20 @@ static void tick_handler(listener *l) {
             break;
         case RIS_EXPECT:
             any_work = true;
-            if (info->u.expect.error == RX_ERROR_READY_FOR_DELIVERY) {
+            if(!info->u.expect.box){
+                break; // this may happen if info->state goes from RIS_EXPECT to RIS_HOLD in parallel to this tick handler
+            }
+            assert(info->u.expect.box);
+            int s = -5; __atomic_load(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
+            assert(s != -1);
+            if (s == RX_ERROR_READY_FOR_DELIVERY) {
                 BUS_LOG(b, 4, LOG_LISTENER, "retrying RX event delivery", b->udata);
+                fprintf(stderr, "trying RX delivery: %p\n",info->u.expect.box);
                 retry_delivery(l, info);
-            } else if (info->u.expect.error == RX_ERROR_DONE) {
+            } else if (s == RX_ERROR_DONE) {
                 BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 64, "cleaning up completed RX event at info %p", (void*)info);
                 clean_up_completed_info(l, info);
-            } else if (info->u.expect.error != RX_ERROR_NONE) {
+            } else if (s != RX_ERROR_NONE) {
                 BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64, "notifying of rx failure -- error %d (info %p)", info->u.expect.error, (void*)info);
                 ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_FAILURE);
             } else if (info->timeout_sec == 1) {
@@ -205,8 +227,10 @@ static void tick_handler(listener *l) {
                     (long)box->tv_send_start.tv_sec, (long)box->tv_send_start.tv_usec,
                     (long)box->tv_send_done.tv_sec, (long)box->tv_send_done.tv_usec,
                     (long)cur.tv_sec, (long)cur.tv_usec);
+
                 (void)box;
-                fprintf(stderr, "Timeout -> ListenerTask_ReleaseRXInfo %d\n", info->id);
+                
+                //fprintf(stderr, "EXPECT Timeout -> ListenerTask_ReleaseRXInfo %d %lld %d %s\n", info->u.hold.fd, (long long)info->u.hold.seq_id, info->u.hold.error , (char*)info->u.expect.box->out_msg);
                 ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_TIMEOUT);
             } else {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
@@ -233,6 +257,7 @@ void ListenerTask_DumpRXInfoTable(listener *l) {
         printf(" -- state: %d, info[%d]: timeout %ld",
             info->state, info->id, info->timeout_sec);
         switch (l->rx_info[i].state) {
+        
         case RIS_HOLD:
             printf(", fd %d, seq_id %lld, has_result? %d\n",
                 info->u.hold.fd, (long long)info->u.hold.seq_id, info->u.hold.has_result);
@@ -248,6 +273,10 @@ void ListenerTask_DumpRXInfoTable(listener *l) {
         case RIS_INACTIVE:
             printf(", INACTIVE (next: %d)\n", info->next ? info->next->id : -1);
             break;
+        
+        case RIS_HEADINUSE:
+            printf(", INUSE (next: %d)\n", info->next ? info->next->id : -1);
+            break;
         }
     }
 }
@@ -255,6 +284,7 @@ void ListenerTask_DumpRXInfoTable(listener *l) {
 static void retry_delivery(listener *l, rx_info_t *info) {
     struct bus *b = l->bus;
     BUS_ASSERT(b, b->udata, info->state == RIS_EXPECT);
+    //info->state = RIS_HEADINUSE; pseudo lock
     BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_READY_FOR_DELIVERY);
     BUS_ASSERT(b, b->udata, info->u.expect.box);
 
@@ -277,10 +307,12 @@ static void retry_delivery(listener *l, rx_info_t *info) {
         ListenerTask_ReleaseRXInfo(l, info);
     } else {
         BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "returning box %p at line %d", (void*)box, __LINE__);
+        assert(box);
         info->u.expect.box = box;    /* retry in tick_handler */
     }
 
     observe_backpressure(l, backpressure);
+    //info->state = RIS_EXPECT;
 }
 
 static void clean_up_completed_info(listener *l, rx_info_t *info) {
@@ -318,8 +350,8 @@ static void clean_up_completed_info(listener *l, rx_info_t *info) {
             info->u.expect.box = NULL;
             ListenerTask_ReleaseRXInfo(l, info);
         } else {
-            BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-                "returning box %p at line %d", (void*)box, __LINE__);
+            BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "returning box %p at line %d", (void*)box, __LINE__);
+            assert(box);
             info->u.expect.box = box;    /* retry in tick_handler */
         }
     } else {                    /* already processed, just release it */
@@ -342,17 +374,16 @@ void ListenerTask_NotifyMessageFailure(listener *l, rx_info_t *info, bus_send_st
 
     boxed_msg *box = info->u.expect.box;
     info->u.expect.box = NULL;
-    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-        "releasing box %p at line %d", (void*)box, __LINE__);
+    BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "releasing box %p at line %d", (void*)box, __LINE__);
+
     if (Bus_ProcessBoxedMessage(l->bus, box, &backpressure)) {
         info->u.expect.box = NULL;
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-            "delivered box %p with failure message %d at line %d (info %p)",
-            (void*)box, status, __LINE__, (void*)info);
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "delivered box %p with failure message %d at line %d (info %p)", (void*)box, status, __LINE__, (void*)info);
         info->u.expect.error = RX_ERROR_DONE;
         ListenerTask_ReleaseRXInfo(l, info);
     } else {
         /* RetuBus_RegisterSocket to info, will be released on retry. */
+        assert(box);
         info->u.expect.box = box;
     }
 
@@ -371,15 +402,18 @@ static connection_info *get_connection_info(struct listener *l, int fd) {
 
 
 void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
+    //ListenerTask_CountMessages(l);
     struct bus *b = l->bus;
     BUS_ASSERT(b, b->udata, info);
     BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128,"releasing RX info %d (%p), state %d", info->id, (void *)info, info->state);
     BUS_ASSERT(b, b->udata, info->id < MAX_PENDING_MESSAGES);
     BUS_ASSERT(b, b->udata, info == &l->rx_info[info->id]);
 
+    rx_info_state newstate = RIS_HEADINUSE;
+
     switch (info->state) {
     case RIS_HOLD:
-        info->state = RIS_HEADINUSE; // pseudo lock
+    	__atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
         BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, " -- releasing HOLD: has result? %d", info->u.hold.has_result);
         if (info->u.hold.has_result) {
             /* If we have a message that timed out, we need to free it,
@@ -402,7 +436,7 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
         }
         break;
     case RIS_EXPECT:
-        info->state = RIS_HEADINUSE; // pseudo lock
+        __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
         BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
         BUS_ASSERT(b, b->udata, info->u.expect.box == NULL);
         break;
@@ -415,26 +449,30 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "releasing rx_info_t %d (%p), was %d", info->id, (void *)info, info->state);
     BUS_ASSERT(b, b->udata, info->state != RIS_INACTIVE);
 
-    info->state = RIS_INACTIVE;
     memset(&info->u, 0, sizeof(info->u));
 
-    // small integrity check:
-    assert(l->rx_info_freelist->id > -1);
-    assert(l->rx_info_freelist->next->id > -1);
+    newstate = RIS_INACTIVE;
+    __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
 
+    // small integrity check:
+    
+    assert(l->rx_info_freelist->id < MAX_PENDING_MESSAGES);
+    //assert(l->rx_info_freelist->next->id < MAX_PENDING_MESSAGES);
+    
     do{
         info->next = l->rx_info_freelist;
-        assert(info->next->id > -1);
+        assert(info->next->id < MAX_PENDING_MESSAGES);
     }while( false == (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, info->next, info)));
 
     // small integrity check:
-    assert(l->rx_info_freelist->id > -1);
-    assert(l->rx_info_freelist->next->id > -1);
-
+    assert(l->rx_info_freelist->id < MAX_PENDING_MESSAGES);
+    //assert(l->rx_info_freelist->next->id < MAX_PENDING_MESSAGES);
+    
     if(info->id > 0 && l->rx_info_max_used == info->id){
         ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_max_used, info->id, info->id-1);
         // This needs improvement! See below:
     }
+    //fprintf(stderr, "rx_info_max_used %d\n",l->rx_info_max_used);
 /*
     if (l->rx_info_max_used == info->id && info->id > 0) {
         BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "rx_info_max_used--, from %d to %d", l->rx_info_max_used, l->rx_info_max_used - 1);
@@ -451,10 +489,64 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     __sync_fetch_and_sub(&l->rx_info_in_use, 1);//    l->rx_info_in_use--;
 }
 
+static void ListenerTask_CountMessages(struct listener* l){
+    int count = 0;
+    int count2 = 0;
+    int count3 = 0;
+    int count4 = 0;
+
+    rx_info_t *info = l->rx_info_freelist;
+    
+    if(info){
+	    do{
+	    	fprintf(stderr, "%d-", info->id);
+	        info = info->next;
+	        count++;
+	    }while(info != NULL && info != l->rx_info_freelist);
+	    fprintf(stderr, "\n\n");
+	}
+
+    for (int i = 0; i < MAX_PENDING_MESSAGES ; i++) {
+    	info = &(l->rx_info[i]);
+    	if(info && info->state != 3){
+       		fprintf(stderr, "%d-", info->id);
+	      	count2++;
+	  	}
+	}
+	fprintf(stderr, "\n\n");    
+	
+
+    listener_msg* msg = l->msg_freelist;
+    
+    if(msg){
+		do{
+			fprintf(stderr, "%d-", msg->id);
+	        msg = msg->next;
+	        count4++;
+	    }while(msg != l->msg_freelist && msg != NULL);
+	    fprintf(stderr, "\n\n");
+	}
+
+
+	for (int i = 0; i < MAX_QUEUE_MESSAGES ; i++) {
+    	msg = &(l->msgs[i]);
+    	if(msg && msg->type != 0){
+			fprintf(stderr, "%d-%d--", msg->id, msg->type);    
+	        count3++;
+	    }
+	}
+	fprintf(stderr, "\n\n");  
+
+    if(count+count4 != MAX_QUEUE_MESSAGES+MAX_PENDING_MESSAGES) {
+    	fprintf(stderr, "Current count: %d+%d+%d+%d=%d\n", count, count2, count3, count4, count+count2+count3+count4);
+    }
+    
+}
+
 void ListenerTask_ReleaseMsg(struct listener *l, listener_msg *msg) {
     struct bus *b = l->bus;
     BUS_ASSERT(b, b->udata, msg->id < MAX_QUEUE_MESSAGES);
-    fprintf(stderr, "ListenerTask_ReleaseMsg: %p\n", msg);
+    //fprintf(stderr, "ListenerTask_ReleaseMsg: %p\n", msg);
     msg->type = MSG_NONE;
 
     for (;;) {
@@ -489,8 +581,9 @@ bool ListenerTask_GrowReadBuf(listener *l, size_t nsize) {
 
 void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     struct bus *b = l->bus;
-
+    //fprintf(stderr, "attmpt delivery: %p\n",info->u.expect.box);
     struct boxed_msg *box = info->u.expect.box;
+    assert(box);
     info->u.expect.box = NULL;  /* release */
 
     BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64, "attempting delivery of %p", (void*)box);
@@ -507,8 +600,7 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     }
 
     bus_unpack_cb_res_t unpacked_result = {0, };
-    int count = 50000;
-    do{
+    
 	    switch (info->state) {
 		    case RIS_EXPECT:
 		        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
@@ -523,9 +615,7 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
 	    if(false == unpacked_result.ok){
 	        sched_yield();
 	    }
-	    count--;
-	}    
-    while(false == unpacked_result.ok && count > 0);
+	  
 
     // too much concurrency seems to trigger this assertion:
     BUS_ASSERT(b, b->udata, unpacked_result.ok);
@@ -559,7 +649,7 @@ static void observe_backpressure(listener *l, size_t backpressure) {
     l->upstream_backpressure = (cur + backpressure) / 2;
 }
 
-
+// might not be used anymore
 uint16_t ListenerTask_GetBackpressure(struct listener *l) {
     uint16_t msg_fill_pressure = 0;
     
