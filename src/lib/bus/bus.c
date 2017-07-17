@@ -131,6 +131,7 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
         if (ls[i] == NULL) {
             res->status = BUS_INIT_ERROR_LISTENER_INIT_FAIL;
 	        fprintf(stderr,"Listener init failed\n");
+            assert(false);
             goto cleanup;
         } else {
             BUS_LOG_SNPRINTF(b, 3, LOG_INITIALIZATION, b->udata, 64, "Initialized listener %d at %p", i, (void*)ls[i]);
@@ -247,7 +248,11 @@ static boxed_msg *box_msg(struct bus *b, bus_user_msg *msg) {
     #else
     box = calloc(1, sizeof(*box));
     #endif
-    if (box == NULL) { return NULL; }
+
+    assert(box != NULL);
+    if(box == NULL){
+        return false;
+    }
 
     BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 64,
         "Allocated boxed message -- %p", (void*)box);
@@ -269,6 +274,8 @@ static boxed_msg *box_msg(struct bus *b, bus_user_msg *msg) {
     if (ci == NULL) {
         /* socket isn't registered, fail out */
         BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 64, "socket isn't registered, failing -- %p", (void*)box);
+        fprintf(stderr,"socket isn't registered, failing\n");
+        assert(false);
         free(box);
         return NULL;
     } else {
@@ -280,6 +287,8 @@ static boxed_msg *box_msg(struct bus *b, bus_user_msg *msg) {
         BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 256,
             "rejecting request <fd:%d, seq_id:%lld> due to non-monotonic sequence ID, largest seen is %lld",
             box->fd, (long long)msg->seq_id, (long long)ci->largest_wr_seq_id_seen);
+        fprintf(stderr,"non-monotonic sequence ID\n");
+        assert(false);
         free(box);
         return NULL;
     } else {
@@ -310,10 +319,11 @@ bool Bus_SendRequest(struct bus *b, bus_user_msg *msg)
     }
 
     boxed_msg *box = box_msg(b, msg);
-    if (box == NULL) {
+    assert(box != NULL);
+    if(box == NULL){
         return false;
     }
-
+    
     BUS_LOG_SNPRINTF(b, 3-0, LOG_SENDING_REQUEST, b->udata, 64, "Sending request <fd:%d, seq_id:%lld>", msg->fd, (long long)msg->seq_id);
 
     bool res = Send_DoBlockingSend(b, box);
@@ -324,6 +334,7 @@ bool Bus_SendRequest(struct bus *b, bus_user_msg *msg)
      * handling callback. */
     if (!res) {
         BUS_LOG_SNPRINTF(b, 3, LOG_SENDING_REQUEST, b->udata, 64, "Freeing box since request was rejected: %p", (void *)box);
+        assert(false);
         if( box != NULL ) free(box); // ROB double free with line 578
     }
 
@@ -612,6 +623,7 @@ bool Bus_ProcessBoxedMessage(struct bus *b, struct boxed_msg *box, size_t *backp
 #define THREAD_SHUTDOWN_SECONDS 5
 
 void Bus_Free(bus *b) {
+    fprintf(stderr, "Bus_Free: %p\n", b);
     if (b == NULL) { return; }
     while (b->shutdown_state != SHUTDOWN_STATE_HALTED) {
         if (Bus_Shutdown(b)) { break; }
