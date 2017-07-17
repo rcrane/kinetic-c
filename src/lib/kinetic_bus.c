@@ -43,7 +43,9 @@ static bus_sink_cb_res_t reset_transfer(socket_info *si) {
 
     si->state = STATE_AWAITING_HEADER;
     si->accumulated = 0;
-    si->unpack_status = UNPACK_ERROR_UNDEFINED;
+    //si->unpack_status = UNPACK_ERROR_UNDEFINED;
+    enum unpack_error s = UNPACK_ERROR_UNDEFINED;
+    __atomic_store(&(si->unpack_status), &s, __ATOMIC_RELAXED);
     memset(&si->header, 0x00, sizeof(si->header));
     return res;
 }
@@ -101,7 +103,9 @@ STATIC bus_sink_cb_res_t sink_cb(uint8_t *read_buf,
             if (unpack_header(&si->buf[0], PDU_HEADER_LEN, &si->header))
             {
                 si->accumulated = 0;
-                si->unpack_status = UNPACK_ERROR_SUCCESS;
+                //si->unpack_status = UNPACK_ERROR_SUCCESS;
+                enum unpack_error s = UNPACK_ERROR_SUCCESS;
+                __atomic_store(&(si->unpack_status), &s, __ATOMIC_RELAXED);
                 si->state = STATE_AWAITING_BODY;
                 bus_sink_cb_res_t res = {
                     .next_read = si->header.protobufLength + si->header.valueLength,
@@ -166,9 +170,7 @@ static void log_response_seq_id(int fd, int64_t seq_id) {
     #if KINETIC_LOGGER_LOG_SEQUENCE_ID
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    LOGF2("SEQ_ID response fd %d seq_id %lld %08lld.%08d",
-        fd, (long long)seq_id,
-        (long)tv.tv_sec, (long)tv.tv_usec);
+    LOGF2("SEQ_ID response fd %d seq_id %lld %08lld.%08d", fd, (long long)seq_id, (long)tv.tv_sec, (long)tv.tv_usec);
     #else
     (void)seq_id;
     #endif
@@ -181,7 +183,10 @@ STATIC bus_unpack_cb_res_t unpack_cb(void *msg, void *socket_udata) {
     /* just got .full_msg_buffer from sink_cb -- pass it along as-is */
     socket_info *si = (socket_info *)msg;
 
-    if (si->unpack_status != UNPACK_ERROR_SUCCESS)
+    enum unpack_error s = UNPACK_ERROR_UNDEFINED;
+    __atomic_load(&(si->unpack_status), &s, __ATOMIC_RELAXED);
+    
+    if (s != UNPACK_ERROR_SUCCESS)
     {
         fprintf(stderr, "unpack_status != UNPACK_ERROR_SUCCESS error at %s:%d in %s\n", __FILE__, (int)__LINE__, __func__); 
         return (bus_unpack_cb_res_t) {
@@ -236,7 +241,7 @@ STATIC bus_unpack_cb_res_t unpack_cb(void *msg, void *socket_udata) {
             }
             log_response_seq_id(session->socket, seq_id);
         }
-
+        
         bus_unpack_cb_res_t res = {
             .ok = true,
             .u.success = {
