@@ -33,6 +33,7 @@
 #include "listener_internal.h"
 #include "syscall.h"
 #include "util.h"
+#include "atomic.h"
 
 struct listener *Listener_Init(struct bus *b, struct bus_config *cfg) {
     struct listener *l = calloc(1, sizeof(*l));
@@ -54,16 +55,26 @@ struct listener *Listener_Init(struct bus *b, struct bus_config *cfg) {
     l->fds[INCOMING_MSG_PIPE_ID].events = POLLIN;
     l->shutdown_notify_fd = LISTENER_NO_FD;
 
+    rx_info_t * rxheadhandle = NULL;
+    listener_msg * msgheadhandle = NULL;
+
     for (int i = MAX_PENDING_MESSAGES - 1; i >= 0; i--) {
         rx_info_t *info = &l->rx_info[i];
         info->state = RIS_INACTIVE;
+        
+        info->u.expect.error = -1;
+        info->u.hold.error = -1;
+        
+        info->u.expect.has_result = false;
+        info->u.hold.has_result = false;
 
         uint16_t *p_id = (uint16_t *)&info->id;
-        info->next = l->rx_info_freelist;
-        l->rx_info_freelist = info;
+        info->next = rxheadhandle;
+        rxheadhandle = info;
         *p_id = i;
+                
     }
-
+   
     for (int pipe_count = 0; pipe_count < MAX_QUEUE_MESSAGES; pipe_count++) {
         listener_msg *msg = &l->msgs[pipe_count];
 
@@ -83,9 +94,12 @@ struct listener *Listener_Init(struct bus *b, struct bus_config *cfg) {
             free(l);
             return NULL;
         }
-        msg->next = l->msg_freelist;
-        l->msg_freelist = msg;
+        msg->next = msgheadhandle;
+        msgheadhandle = msg;
     }
+
+    l->rx_info_freelist = rxheadhandle; // make the queue visible only after it has been built completely
+    l->msg_freelist = msgheadhandle; // make the queue visible only after it has been built completely
     l->rx_info_max_used = 0;
 
     (void)cfg;
@@ -97,7 +111,7 @@ bool Listener_AddSocket(struct listener *l,
     listener_msg *msg = ListenerHelper_GetFreeMsg(l);
     if (msg == NULL) { return false; }
 
-    msg->type = MSG_ADD_SOCKET;
+    assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(msg->type), MSG_HEADINUSE, MSG_ADD_SOCKET));
     msg->u.add_socket.info = ci;
     msg->u.add_socket.notify_fd = msg->pipes[1];
     return ListenerHelper_PushMessage(l, msg, notify_fd);
@@ -106,8 +120,8 @@ bool Listener_AddSocket(struct listener *l,
 bool Listener_RemoveSocket(struct listener *l, int fd, int *notify_fd) {
     listener_msg *msg = ListenerHelper_GetFreeMsg(l);
     if (msg == NULL) { return false; }
-
-    msg->type = MSG_REMOVE_SOCKET;
+    
+    assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(msg->type), MSG_HEADINUSE, MSG_REMOVE_SOCKET));
     msg->u.remove_socket.fd = fd;
     msg->u.remove_socket.notify_fd = msg->pipes[1];
     return ListenerHelper_PushMessage(l, msg, notify_fd);
@@ -124,12 +138,11 @@ bool Listener_HoldResponse(struct listener *l, int fd, int64_t seq_id, int16_t t
 
     BUS_LOG_SNPRINTF(b, 5, LOG_MEMORY, b->udata, 128, "Listener_HoldResponse with <fd:%d, seq_id:%lld>", fd, (long long)seq_id);
 
-    msg->type = MSG_HOLD_RESPONSE;
     msg->u.hold.fd = fd;
     msg->u.hold.seq_id = seq_id;
     msg->u.hold.timeout_sec = timeout_sec;
     msg->u.hold.notify_fd = msg->pipes[1];
-
+    assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(msg->type), MSG_HEADINUSE, MSG_HOLD_RESPONSE));
     bool pm_res = ListenerHelper_PushMessage(l, msg, notify_fd);
     if (!pm_res) {
         BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128, "Listener_HoldResponse with <fd:%d, seq_id:%lld> FAILED", fd, (long long)seq_id);
@@ -142,16 +155,15 @@ bool Listener_ExpectResponse(struct listener *l, boxed_msg *box, uint16_t *backp
     struct bus *b = l->bus;
     if (msg == NULL) {
         BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128, "! ListenerHelper_GetFreeMsg fail %p", (void*)box);
-        return false;
+        assert(false);
     }
 
     BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "Listener_ExpectResponse with box of %p, seq_id:%lld", (void*)box, (long long)box->out_seq_id);
 
     msg->u.expect.box = box;
-    msg->type = MSG_EXPECT_RESPONSE;
     *backpressure = 0; // ROB ListenerTask_GetBackpressure(l);
     BUS_ASSERT(b, b->udata, box->result.status != BUS_SEND_UNDEFINED);
-
+    assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(msg->type), MSG_HEADINUSE, MSG_EXPECT_RESPONSE));
     bool pm = ListenerHelper_PushMessage(l, msg, NULL);
     if (!pm) {
         BUS_LOG_SNPRINTF(b, 0, LOG_MEMORY, b->udata, 128, "! ListenerHelper_PushMessage fail %p", (void*)box);
@@ -163,11 +175,13 @@ bool Listener_Shutdown(struct listener *l, int *notify_fd) {
     listener_msg *msg = ListenerHelper_GetFreeMsg(l);
     if (msg == NULL) { return false; }
 
-    msg->type = MSG_SHUTDOWN;
+    assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(msg->type), MSG_HEADINUSE, MSG_SHUTDOWN));
+    
     msg->u.shutdown.notify_fd = msg->pipes[1];
     return ListenerHelper_PushMessage(l, msg, notify_fd);
 }
 
+// used for bus shutdown
 void Listener_Free(struct listener *l) {
     if (l) {
         struct bus *b = l->bus;
@@ -195,11 +209,15 @@ void Listener_Free(struct listener *l) {
                     "match fail %d on line %d", info->state, __LINE__);
                 BUS_ASSERT(b, b->udata, false);
             }
+            info->u.expect.error = -1;
+            info->u.hold.error = -1;
+            info->u.expect.has_result = false;
+            info->u.hold.has_result = false;
         }
 
         for (int i = 0; i < MAX_QUEUE_MESSAGES; i++) {
             listener_msg *msg = &l->msgs[i];
-            fprintf(stderr, "Listener_Free: %p\n", msg);
+            //fprintf(stderr, "Listener_Free: %p\n", msg);
             switch (msg->type) {
             case MSG_ADD_SOCKET:
                 ListenerCmd_NotifyCaller(l, msg->u.add_socket.notify_fd);
