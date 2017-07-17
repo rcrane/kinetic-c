@@ -31,6 +31,9 @@ int read_errno;
 #endif
 
 bool BusPoll_OnCompletion(struct bus *b, int fd) {
+
+    // see ListenerCmd_NotifyCaller
+
     /* POLL in a pipe */
     #ifndef TEST
     struct pollfd fds[1];
