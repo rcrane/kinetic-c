@@ -20,6 +20,7 @@
 #include <assert.h>
 #include "syscall.h"
 #include <string.h>
+#include "atomic.h"
 
 #include "listener_cmd.h"
 #include "listener_cmd_internal.h"
@@ -38,6 +39,9 @@ uint8_t cmd_buf[LISTENER_CMD_BUF_SIZE];
 #endif
 
 void ListenerCmd_NotifyCaller(listener *l, int fd) {
+
+    //this method is used for thread sync during connection setup
+
     if (fd == -1) { return; }
     #ifndef TEST
     uint8_t reply_buf[sizeof(uint8_t) + sizeof(uint16_t)];
@@ -100,7 +104,8 @@ void ListenerCmd_CheckIncomingMessages(listener *l, int *res) {
                     listener_msg *msg = &l->msgs[msg_id];
                     assert(msg);
                     ListenerCmd_msg_handler(l, msg);
-                    ListenerTask_ReleaseMsg(l, msg);
+                    fprintf(stderr, "ListenerCmd_CheckIncomingMessages\n");
+                    //ListenerTask_ReleaseMsg(l, msg);
                 }
                 (*res)--;
                 break;
@@ -111,7 +116,7 @@ void ListenerCmd_CheckIncomingMessages(listener *l, int *res) {
 
 void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
     struct bus *b = l->bus;
-     fprintf(stderr, "ListenerCmd_msg_handler: %p\n", pmsg);
+    // fprintf(stderr, "ListenerCmd_msg_handler: %p\n", pmsg);
     BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 128, "Handling message -- %p, type %d", (void*)pmsg, pmsg->type);
 
     __sync_bool_compare_and_swap(&(l->is_idle), true, false);
@@ -142,7 +147,8 @@ void ListenerCmd_msg_handler(listener *l, listener_msg *pmsg) {
         BUS_ASSERT(b, b->udata, false);
         break;
     }
-    //ListenerTask_ReleaseMsg(l, pmsg); moved to ListenerCmd_CheckIncomingMessages
+    ListenerTask_ReleaseMsg(l, pmsg); 
+    //moved to ListenerCmd_CheckIncomingMessages
 }
 
 /* Swap poll and connection info for tracked sockets, by array offset. */
@@ -180,7 +186,7 @@ static void add_socket(listener *l, connection_info *ci, int notify_fd) {
 
     int id = l->tracked_fds;
     l->fd_info[id] = ci;
-    l->fds[id + INCOMING_MSG_PIPE].fd = ci->fd;
+    l->fds[id + INCOMING_MSG_PIPE].fd = ci->fd; //atomic fds
     l->fds[id + INCOMING_MSG_PIPE].events = POLLIN;
 
     /* If there are any inactive FDs, we need to swap the new last FD
@@ -191,7 +197,7 @@ static void add_socket(listener *l, connection_info *ci, int notify_fd) {
         swap(l, id, first_inactive);
     }
 
-    l->tracked_fds++;
+    __sync_fetch_and_add(&(l->tracked_fds),1);
 
     for (int i = 0; i < l->tracked_fds; i++) {
         if (l->fds[i + INCOMING_MSG_PIPE].events & POLLIN) {
@@ -248,8 +254,11 @@ static void remove_socket(listener *l, int fd, int notify_fd) {
                 /* The node is now at the end of the array. */
             }
 
-            l->tracked_fds--;
-            if (!is_active) { l->inactive_fds--; }
+            __sync_fetch_and_sub(&l->tracked_fds, 1);
+            
+            if (!is_active) {
+                 __sync_fetch_and_sub(&l->inactive_fds, 1);
+            }
         }
     }
     /* CI will be freed by the client thread. */
@@ -266,16 +275,18 @@ static void hold_response(listener *l, int fd, int64_t seq_id, int16_t timeout_s
 //      ListenerCmd_NotifyCaller(l, notify_fd); // The 'caller' actually calls the method directly now
         return;
     }
+    
     BUS_ASSERT(b, b->udata, info);
 
     BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "setting info %p(+%d) to hold response <fd:%d, seq_id:%lld>", (void *)info, info->id, fd, (long long)seq_id);
     info->u.expect.box = NULL;
-    info->state = RIS_HOLD;
+    info->u.hold.error = RX_ERROR_NONE;
     info->timeout_sec = timeout_sec;
     info->u.hold.fd = fd;
     info->u.hold.seq_id = seq_id;
     info->u.hold.has_result = false;
     memset(&info->u.hold.result, 0, sizeof(info->u.hold.result));
+    assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(info->state), RIS_HEADINUSE, RIS_HOLD));
 //  ListenerCmd_NotifyCaller(l, notify_fd); // The 'caller' actually calls the method directly now
 }
 
@@ -293,6 +304,8 @@ static void expect_response(listener *l, struct boxed_msg *box) {
 
         info->u.expect.box = NULL;
 
+        assert(info->u.hold.error != -1);
+
         if (info->u.hold.error == RX_ERROR_NONE && info->u.hold.has_result) {
             bus_unpack_cb_res_t result = info->u.hold.result;
 
@@ -301,11 +314,14 @@ static void expect_response(listener *l, struct boxed_msg *box) {
                 info->id, (void *)info,
                 (void *)box, info->u.hold.fd, (long long)info->u.hold.seq_id);
 
-            info->u.expect.error = RX_ERROR_READY_FOR_DELIVERY;
             info->u.expect.box = box;
+            assert(info->u.expect.box);
             info->u.expect.has_result = true;
             info->u.expect.result = result;
+            assert(info->u.expect.result.ok);
             info->state = RIS_EXPECT;
+            int s = RX_ERROR_READY_FOR_DELIVERY; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
+            assert(info->u.expect.box);
             BUS_ASSERT(b, b->udata, box->result.status != BUS_SEND_UNDEFINED);
 
             ListenerTask_AttemptDelivery(l, info);
@@ -316,9 +332,11 @@ static void expect_response(listener *l, struct boxed_msg *box) {
 
             rx_error_t error = info->u.hold.error;
             bus_unpack_cb_res_t result = info->u.hold.result;
-            info->u.expect.error = error;
+            __atomic_store(&(info->u.expect.error), &error, __ATOMIC_RELAXED);
             info->u.expect.result = result;
+            assert(info->u.expect.result.ok);
             info->u.expect.box = box;
+            assert(info->u.expect.box);
             info->state = RIS_EXPECT;
             ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_FAILURE);
         } else {
@@ -327,7 +345,8 @@ static void expect_response(listener *l, struct boxed_msg *box) {
                 (void *)box, info->u.hold.fd, (long long)info->u.hold.seq_id);
 
             info->u.expect.box = box;
-            info->u.expect.error = RX_ERROR_NONE;
+            assert(info->u.expect.box);
+            int s = RX_ERROR_NONE; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
             info->u.expect.has_result = false;
             info->state = RIS_EXPECT;
             /* Switch over to client's transferred timeout */
@@ -342,9 +361,11 @@ static void expect_response(listener *l, struct boxed_msg *box) {
     }else {
         /* should never happen; just drop the message */
         BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256, "Couldn't find info for box %p", (void *)box);
+        fprintf(stderr, "Couldn't find info for box %p\n", (void *)box);
     }
 }
 
 static void shutdown(listener *l, int notify_fd) {
-    l->shutdown_notify_fd = notify_fd;
+    int val = notify_fd;
+    __atomic_store(&(l->shutdown_notify_fd), &val, __ATOMIC_RELAXED);
 }
