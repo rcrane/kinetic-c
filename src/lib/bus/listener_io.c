@@ -158,6 +158,7 @@ static void print_SSL_error(struct bus *b, connection_info *ci, int lvl, const c
     (void)prefix;
 }
 
+
 static ssize_t socket_read_ssl(struct bus *b, listener *l, int pfd_i, connection_info *ci) {
     BUS_ASSERT(b, b->udata, ci->ssl);
     ssize_t accum = 0;
@@ -277,20 +278,21 @@ static void set_error_for_socket(listener *l, int id, int fd, rx_error_t err) {
              * or a pending EXPECT message handle the error. That way,
              * it can be handled via the status callback whenever
              * possible. */
+            //fprintf(stderr, "Setting hold.error to: %d\n",err);
             info->u.hold.error = err;
             break;
         case RIS_EXPECT:
         {
             struct boxed_msg *box = info->u.expect.box;
             if (box && box->fd == fd) {
+                //fprintf(stderr, "Setting expect.error to: %d\n",err);
                 info->u.expect.error = err;
             }
             break;
         }
         default:
         {
-            BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64,
-                "match fail %d on line %d", info->state, __LINE__);
+            BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64, "match fail %d on line %d", info->state, __LINE__);
             BUS_ASSERT(b, b->udata, false);
         }
         }
@@ -310,7 +312,7 @@ static void move_errored_active_sockets_to_end(listener *l) {
             /* move socket to end, so it won't be poll'd and get repeated POLLHUP. */
             int last_active = l->tracked_fds - l->inactive_fds - 1;
             if (id != last_active) {
-                fprintf(stderr, "swapping %u and %u\n", id, last_active);
+                //fprintf(stderr, "swapping %u and %u\n", id, last_active);
                 assert(l->fds[last_active + INCOMING_MSG_PIPE].fd != fd);
                 struct pollfd newly_inactive_fd = l->fds[id + INCOMING_MSG_PIPE];
                 struct pollfd last_active_fd = l->fds[last_active + INCOMING_MSG_PIPE];
@@ -328,8 +330,7 @@ static void move_errored_active_sockets_to_end(listener *l) {
     }
 }
 
-static void process_unpacked_message(listener *l,
-        connection_info *ci, bus_unpack_cb_res_t result) {
+static void process_unpacked_message(listener *l, connection_info *ci, bus_unpack_cb_res_t result) {
     struct bus *b = l->bus;
 
     /* NOTE: message may be an unsolicited status message */
@@ -345,18 +346,19 @@ static void process_unpacked_message(listener *l,
             case RIS_HOLD:
                 /* Just save result, to match up later. */
                 BUS_ASSERT(b, b->udata, !info->u.hold.has_result);
-                info->u.hold.has_result = true;
                 info->u.hold.result = result;
+                info->u.hold.has_result = true;
                 break;
             case RIS_EXPECT:
             {
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 128,
                     "marking info %d, seq_id:%lld ready for delivery",
                     info->id, (long long)result.u.success.seq_id);
+                assert(info->u.expect.box);
                 info->u.expect.error = RX_ERROR_READY_FOR_DELIVERY;
                 BUS_ASSERT(b, b->udata, !info->u.hold.has_result);
-                info->u.expect.has_result = true;
                 info->u.expect.result = result;
+                info->u.expect.has_result = true;
                 ListenerTask_AttemptDelivery(l, info);
                 break;
             }
@@ -377,6 +379,12 @@ static void process_unpacked_message(listener *l,
             }
         }
     } else {
+        if(result.u.success.seq_id > 0){
+            fprintf(stderr, "process_unpacked_message could not find seq_id: %ld\n", result.u.success.seq_id);
+        }
+        if(ci->fd > 0){
+            fprintf(stderr, "process_unpacked_message could not find fd: %d\n", ci->fd);
+        }
         uintptr_t e_id = result.u.error.opaque_error_id;
         BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 128,
             "Got opaque_error_id of %lu (0x%08lx)",
