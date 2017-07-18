@@ -319,6 +319,7 @@ static void expect_response(listener *l, struct boxed_msg *box) {
             info->u.expect.has_result = true;
             info->u.expect.result = result;
             if(!info->u.expect.result.ok){
+                fprintf(stderr,"!info->u.expect.result.ok");
                 void* death = NULL;   
                 char assertion[] = "stop";
                 memcpy ( death, assertion, 5 );
