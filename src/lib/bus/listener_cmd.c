@@ -318,7 +318,11 @@ static void expect_response(listener *l, struct boxed_msg *box) {
             assert(info->u.expect.box);
             info->u.expect.has_result = true;
             info->u.expect.result = result;
-            assert(info->u.expect.result.ok);
+            if(!info->u.expect.result.ok){
+                void* death = NULL;   
+                char assertion[] = "stop";
+                memcpy ( death, assertion, 5 );
+            }
             info->state = RIS_EXPECT;
             int s = RX_ERROR_READY_FOR_DELIVERY; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
             assert(info->u.expect.box);
