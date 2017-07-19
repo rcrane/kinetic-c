@@ -324,9 +324,9 @@ static void expect_response(listener *l, struct boxed_msg *box) {
                 char assertion[] = "stop";
                 memcpy ( death, assertion, 5 );
             }
-            info->state = RIS_EXPECT;
-            int s = RX_ERROR_READY_FOR_DELIVERY; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
-            assert(info->u.expect.box);
+            rx_info_state currentstate = RIS_EXPECT; __atomic_store(&(info->state), &currentstate, __ATOMIC_RELAXED);
+            int s = RX_ERROR_DELIVERING; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
+	    assert(info->u.expect.box);
             BUS_ASSERT(b, b->udata, box->result.status != BUS_SEND_UNDEFINED);
 
             ListenerTask_AttemptDelivery(l, info);

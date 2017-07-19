@@ -98,6 +98,7 @@ typedef struct bus {
 typedef enum {
     RX_ERROR_NONE = 0,
     RX_ERROR_READY_FOR_DELIVERY = 1,
+    RX_ERROR_DELIVERING = 22,
     RX_ERROR_DONE = 2,
     RX_ERROR_POLLHUP = -31,
     RX_ERROR_POLLERR = -32,

@@ -152,7 +152,8 @@ static void tick_handler(listener *l) {
 
     if (b->log_level > 5 || 0) { ListenerTask_DumpRXInfoTable(l); }
 
-	rx_info_state currentstate = RIS_INACTIVE;
+    int rxs = -5;
+    rx_info_state currentstate = RIS_INACTIVE;
     //rx_info_max_used should probably be accessed atomically
     for (int i = 0; i <= l->rx_info_max_used; i++) {
         rx_info_t *info = &l->rx_info[i];
@@ -194,20 +195,18 @@ static void tick_handler(listener *l) {
             break;
         case RIS_EXPECT:
             any_work = true;
-            if(!info->u.expect.box){
-                break; // this may happen if info->state goes from RIS_EXPECT to RIS_HOLD in parallel to this tick handler
-            }
-            assert(info->u.expect.box);
-            int s = -5; __atomic_load(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
-            assert(s != -1);
-            if (s == RX_ERROR_READY_FOR_DELIVERY) {
+            __atomic_load(&(info->u.expect.error), &rxs, __ATOMIC_RELAXED);
+	    assert(rxs != -5);
+	    if (rxs == RX_ERROR_READY_FOR_DELIVERY) {
                 BUS_LOG(b, 4, LOG_LISTENER, "retrying RX event delivery", b->udata);
                 fprintf(stderr, "trying RX delivery: %p\n",info->u.expect.box);
                 retry_delivery(l, info);
-            } else if (s == RX_ERROR_DONE) {
+	    } else if (rxs == RX_ERROR_DELIVERING){
+	   	    // not doing anything
+            } else if (rxs == RX_ERROR_DONE) {
                 BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 64, "cleaning up completed RX event at info %p", (void*)info);
                 clean_up_completed_info(l, info);
-            } else if (s != RX_ERROR_NONE) {
+            } else if (rxs != RX_ERROR_NONE) {
                 BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64, "notifying of rx failure -- error %d (info %p)", info->u.expect.error, (void*)info);
                 ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_FAILURE);
             } else if (info->timeout_sec == 1) {
@@ -599,25 +598,19 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     	}
     }
 
-    bus_unpack_cb_res_t unpacked_result = {0, };
+    bus_unpack_cb_res_t unpacked_result = { .ok = false, .u = 0, };
     
-	    switch (info->state) {
-		    case RIS_EXPECT:
-		        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
-		        unpacked_result = info->u.expect.result;
-		        break;
-		    default:
-		    case RIS_HOLD:
-		    case RIS_INACTIVE:
-		        BUS_ASSERT(b, b->udata, false);
-	    }
+    switch (info->state) {
+	    case RIS_EXPECT:
+	        BUS_ASSERT(b, b->udata, info->u.expect.has_result);
+	        unpacked_result = info->u.expect.result;
+	        break;
+	    default:
+	    case RIS_HOLD:
+	    case RIS_INACTIVE:
+	        BUS_ASSERT(b, b->udata, false);
+   }
 	       
-	    if(false == unpacked_result.ok){
-	        sched_yield();
-	    }
-	  
-
-    // too much concurrency seems to trigger this assertion:
     BUS_ASSERT(b, b->udata, unpacked_result.ok);
     int64_t seq_id = unpacked_result.u.success.seq_id;
     void *opaque_msg = unpacked_result.u.success.msg;
@@ -629,16 +622,14 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
     #endif
     if (Bus_ProcessBoxedMessage(b, box, &backpressure)) {
         /* success */
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 256,
-            "successfully delivered box %p (seq_id:%lld), marking info %d as DONE",
-            (void*)box, (long long)seq_id, info->id);
-        info->u.expect.error = RX_ERROR_DONE;
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 256, "successfully delivered box %p (seq_id:%lld), marking info %d as DONE", (void*)box, (long long)seq_id, info->id);
+        int s = RX_ERROR_DONE; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
         BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 128, "initial clean-up attempt for completed RX event at info +%d", info->id);
         clean_up_completed_info(l, info);
         info = NULL; /* drop out of scope, likely to be stale */
     } else {
-        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128,
-            "returning box %p at line %d", (void*)box, __LINE__);
+        BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "returning box %p at line %d", (void*)box, __LINE__);
+	int s = RX_ERROR_READY_FOR_DELIVERY; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
         info->u.expect.box = box; /* retry in tick_handler */
     }
     observe_backpressure(l, backpressure);
