@@ -442,6 +442,8 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
             }
         }
         break;
+    case RIS_HEADINUSE:
+    	// see  ListenerTask_AttemptDelivery (line 462)
     case RIS_EXPECT:
     
         BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
