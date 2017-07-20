@@ -465,6 +465,9 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     assert(l->rx_info_freelist->id < MAX_PENDING_MESSAGES);
     //assert(l->rx_info_freelist->next->id < MAX_PENDING_MESSAGES);
     
+    newstate = RIS_INACTIVE;
+    __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
+    
     do{
         info->next = l->rx_info_freelist;
         assert(info->next->id < MAX_PENDING_MESSAGES);
@@ -491,8 +494,7 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
         BUS_ASSERT(b, b->udata, l->rx_info_max_used < MAX_PENDING_MESSAGES);
     }
 */
-    newstate = RIS_INACTIVE;
-    __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
+    
     __sync_fetch_and_sub(&l->rx_info_in_use, 1);//    l->rx_info_in_use--;
 }
 
