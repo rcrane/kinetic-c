@@ -414,9 +414,11 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     BUS_ASSERT(b, b->udata, info == &l->rx_info[info->id]);
 
     rx_info_state newstate = RIS_HEADINUSE;
+    rx_info_state oldstate = RIS_INACTIVE;
+    __atomic_load(&(info->state), &oldstate, __ATOMIC_RELAXED);
     __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
     
-    switch (info->state) {
+    switch (oldstate) {
     case RIS_HOLD:
     	
         BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, " -- releasing HOLD: has result? %d", info->u.hold.has_result);
@@ -456,11 +458,8 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
 
     memset(&info->u, 0, sizeof(info->u));
 
-    newstate = RIS_INACTIVE;
-    __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
 
     // small integrity check:
-    
     assert(l->rx_info_freelist->id < MAX_PENDING_MESSAGES);
     //assert(l->rx_info_freelist->next->id < MAX_PENDING_MESSAGES);
     
@@ -490,7 +489,8 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
         BUS_ASSERT(b, b->udata, l->rx_info_max_used < MAX_PENDING_MESSAGES);
     }
 */
-
+    newstate = RIS_INACTIVE;
+    __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
     __sync_fetch_and_sub(&l->rx_info_in_use, 1);//    l->rx_info_in_use--;
 }
 
