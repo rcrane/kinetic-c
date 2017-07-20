@@ -64,7 +64,8 @@ STATIC const int KineticStatusDescriptorCount =
 const char* Kinetic_GetStatusDescription(KineticStatus status)
 {
     if ((int)status < 0 || status >= (int)KINETIC_STATUS_COUNT) {
-        fprintf(stderr,"Kinetic_GetStatusDescription mismatch!\n");
+        // see KineticProtoStatusCode_to_KineticStatus
+        fprintf(stderr,"Kinetic_GetStatusDescription mismatch! (%d)\n", status);
         return KineticStatusInvalid;
     }
     return KineticStatusDescriptor[(int)status];
