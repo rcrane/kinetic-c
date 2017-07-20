@@ -196,12 +196,12 @@ static void tick_handler(listener *l) {
         case RIS_EXPECT:
             any_work = true;
             __atomic_load(&(info->u.expect.error), &rxs, __ATOMIC_RELAXED);
-	    assert(rxs != -5);
-	    if (rxs == RX_ERROR_READY_FOR_DELIVERY) {
+	        assert(rxs != -5);
+	        if (rxs == RX_ERROR_READY_FOR_DELIVERY) {
                 BUS_LOG(b, 4, LOG_LISTENER, "retrying RX event delivery", b->udata);
                 fprintf(stderr, "trying RX delivery: %p\n",info->u.expect.box);
                 retry_delivery(l, info);
-	    } else if (rxs == RX_ERROR_DELIVERING){
+	        } else if (rxs == RX_ERROR_DELIVERING){
 	   	    // not doing anything
             } else if (rxs == RX_ERROR_DONE) {
                 BUS_LOG_SNPRINTF(b, 4, LOG_LISTENER, b->udata, 64, "cleaning up completed RX event at info %p", (void*)info);
@@ -316,8 +316,9 @@ static void retry_delivery(listener *l, rx_info_t *info) {
 
 static void clean_up_completed_info(listener *l, rx_info_t *info) {
     struct bus *b = l->bus;
-    BUS_ASSERT(b, b->udata, info->state == RIS_EXPECT);
+    BUS_ASSERT(b, b->udata, info->state == RIS_EXPECT || info->state == RIS_HEADINUSE);
     BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
+
     BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "info %p, box is %p at line %d", (void*)info, (void*)info->u.expect.box, __LINE__);
 
     #ifndef TEST
@@ -351,6 +352,10 @@ static void clean_up_completed_info(listener *l, rx_info_t *info) {
         } else {
             BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "returning box %p at line %d", (void*)box, __LINE__);
             assert(box);
+
+            //RIS_HEADINUSE --> RIS_EXPECT
+            rx_info_state currentstate = RIS_EXPECT; __atomic_store(&(info->state), &currentstate, __ATOMIC_RELAXED);
+
             info->u.expect.box = box;    /* retry in tick_handler */
         }
     } else {                    /* already processed, just release it */
@@ -409,10 +414,11 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
     BUS_ASSERT(b, b->udata, info == &l->rx_info[info->id]);
 
     rx_info_state newstate = RIS_HEADINUSE;
-
+    __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
+    
     switch (info->state) {
     case RIS_HOLD:
-    	__atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
+    	
         BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, " -- releasing HOLD: has result? %d", info->u.hold.has_result);
         if (info->u.hold.has_result) {
             /* If we have a message that timed out, we need to free it,
@@ -435,7 +441,7 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
         }
         break;
     case RIS_EXPECT:
-        __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); // pseudo lock
+    
         BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
         BUS_ASSERT(b, b->udata, info->u.expect.box == NULL);
         break;
@@ -610,6 +616,8 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
 	    case RIS_INACTIVE:
 	        BUS_ASSERT(b, b->udata, false);
    }
+   
+    rx_info_state newstate = RIS_HEADINUSE; __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); 
 	       
     BUS_ASSERT(b, b->udata, unpacked_result.ok);
     int64_t seq_id = unpacked_result.u.success.seq_id;
@@ -629,7 +637,8 @@ void ListenerTask_AttemptDelivery(listener *l, struct rx_info_t *info) {
         info = NULL; /* drop out of scope, likely to be stale */
     } else {
         BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "returning box %p at line %d", (void*)box, __LINE__);
-	int s = RX_ERROR_READY_FOR_DELIVERY; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
+	    int s = RX_ERROR_READY_FOR_DELIVERY; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
+        rx_info_state newstate = RIS_EXPECT; __atomic_store(&(info->state), &newstate, __ATOMIC_RELAXED); 
         info->u.expect.box = box; /* retry in tick_handler */
     }
     observe_backpressure(l, backpressure);
