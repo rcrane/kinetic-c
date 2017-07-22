@@ -67,16 +67,15 @@ void *ListenerTask_MainLoop(void *arg) {
 
 	int sdnfd = 0;
     __atomic_load(&(self->shutdown_notify_fd), &sdnfd, __ATOMIC_RELAXED);
-            
+    int maxiterations = 1000/LISTENER_TASK_TIMEOUT_DELAY;
+    int iterations = 0;
+
     WHILE (sdnfd == LISTENER_NO_FD) {
-        if (!Util_Timestamp(&now, true)) {
-            BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 64,
-                "timestamp failure: %d", errno);
-        }
-        time_t cur_sec = now.tv_sec;
-        if (cur_sec != last_sec) {
+        iterations++;
+        
+        if (iterations >= maxiterations) {
+            iterations = 0;
             tick_handler(self);
-            last_sec = cur_sec;
         }
 
         bool idle = true;
@@ -93,8 +92,8 @@ void *ListenerTask_MainLoop(void *arg) {
         to_poll = to_poll - self->inactive_fds + INCOMING_MSG_PIPE;
 
         poll_res = syscall_poll(self->fds, to_poll, delay); // atomic fds
-        BUS_LOG_SNPRINTF(b, (poll_res == 0 ? 6 : 4), LOG_LISTENER, b->udata, 64,
-            "poll res %d", poll_res);
+
+        BUS_LOG_SNPRINTF(b, (poll_res == 0 ? 6 : 4), LOG_LISTENER, b->udata, 64, "poll res %d", poll_res);
 
         if (poll_res < 0) {
             if (Util_IsResumableIOError(errno)) {
@@ -168,21 +167,6 @@ static void tick_handler(listener *l) {
             any_work = true;
             /* Check timeout */
             if (info->timeout_sec == 1) {
-                #ifndef TEST
-                struct timeval cur;
-                #endif
-                if (!Util_Timestamp(&cur, false)) {
-                    BUS_LOG(b, 0, LOG_LISTENER, "gettimeofday failure in tick_handler!", b->udata);
-                    continue;
-                }
-
-                /* never got a response, but we don't have the callback
-                 * either -- the client will notify about the timeout. */
-                BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 128,
-                    "timing out hold info %p -- <fd:%d, seq_id:%lld> at (%ld.%ld)",
-                    (void*)info, info->u.hold.fd, (long long)info->u.hold.seq_id,
-                    (long)cur.tv_sec, (long)cur.tv_usec);
-
                 fprintf(stderr, "Hold Timeout -> ListenerTask_ReleaseRXInfo %d %lld %d\n",  info->u.hold.fd, (long long)info->u.hold.seq_id, info->u.hold.error );
                 ListenerTask_ReleaseRXInfo(l, info);
             } else {
@@ -210,23 +194,9 @@ static void tick_handler(listener *l) {
                 BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64, "notifying of rx failure -- error %d (info %p)", info->u.expect.error, (void*)info);
                 ListenerTask_NotifyMessageFailure(l, info, BUS_SEND_RX_FAILURE);
             } else if (info->timeout_sec == 1) {
-                #ifndef TEST
-                struct timeval cur;
-                #endif
-                if (!Util_Timestamp(&cur, false)) {
-                    BUS_LOG(b, 0, LOG_LISTENER,
-                        "gettimeofday failure in tick_handler!", b->udata);
-                    continue;
-                }
+                
                 struct boxed_msg *box = info->u.expect.box;
-                BUS_LOG_SNPRINTF(b, 0, LOG_LISTENER, b->udata, 256 + 64,
-                    "notifying of rx failure -- timeout (info %p) -- "
-                    "<fd:%d, seq_id:%lld>, from time (queued:%ld.%ld) to (sent:%ld.%ld) to (now:%ld.%ld)",
-                    (void*)info, box->fd, (long long)box->out_seq_id,
-                    (long)box->tv_send_start.tv_sec, (long)box->tv_send_start.tv_usec,
-                    (long)box->tv_send_done.tv_sec, (long)box->tv_send_done.tv_usec,
-                    (long)cur.tv_sec, (long)cur.tv_usec);
-
+                
                 (void)box;
                 
                 //fprintf(stderr, "EXPECT Timeout -> ListenerTask_ReleaseRXInfo %d %lld %d %s\n", info->u.hold.fd, (long long)info->u.hold.seq_id, info->u.hold.error , (char*)info->u.expect.box->out_msg);
