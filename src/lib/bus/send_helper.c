@@ -76,7 +76,7 @@ SendHelper_HandleWrite_res SendHelper_HandleWrite(bus *b, boxed_msg *box) {
         "wrote %zd, rem is %zd", wrsz, rem);
 
     if (rem == 0) {             /* check if whole message is written */
-        #ifndef TEST
+        /*#ifndef TEST
         struct timeval done;
         #endif
         if (Util_Timestamp(&done, true)) {
@@ -84,7 +84,7 @@ SendHelper_HandleWrite_res SendHelper_HandleWrite(bus *b, boxed_msg *box) {
         } else {
             Send_HandleFailure(b, box, BUS_SEND_TIMESTAMP_ERROR);
             return SHHW_ERROR;
-        }
+        }*/
 
         if (enqueue_EXPECT_message_to_listener(b, box)) {
             return SHHW_DONE;

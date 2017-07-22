@@ -62,25 +62,29 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
     assert(b);
     assert(box);
 
-    BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
+    /*BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256,
         "doing blocking send of box %p, with <fd:%d, seq_id %lld>, msg[%zd]: %p",
         (void *)box, box->fd, (long long)box->out_seq_id,
         box->out_msg_size, (void *)box->out_msg);
-
-    int timeout_msec = box->timeout_sec * 1000;
-
+*/
+    //int timeout_msec = box->timeout_sec * 1000;
+    int timeout_sec = box->timeout_sec;
+    int max_iterations = 1000*timeout_sec/SEND_POLL_TIMEOUT ;
 #ifndef TEST
-    struct timeval start;
-    struct timeval now;
+   // struct timeval start;
+   // struct timeval now;
     struct pollfd fds[1];
 #endif
-    if (Util_Timestamp(&start, true)) {
+    struct timeval t = { .tv_sec = 0, .tv_usec = 0, };
+    box->tv_send_start =  t;
+
+    /*if (Util_Timestamp(&start, true)) {
         box->tv_send_start = start;
     } else {
         BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128, "gettimeofday failure: %d", errno);
         return false;
     }
-
+*/
     fds[0].fd = box->fd;
     fds[0].events = POLLOUT;
 
@@ -102,29 +106,30 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
 
     assert(box->out_sent_size == 0);
 
-    int rem_msec = timeout_msec;
+    //int rem_msec = timeout_msec;
 
-    while (rem_msec > 0) {
-        if (Util_Timestamp(&now, true)) {
-            size_t usec_elapsed = (((now.tv_sec - start.tv_sec) * 1000000) + (now.tv_usec - start.tv_usec));
-            size_t msec_elapsed = usec_elapsed / 1000;
+    while (max_iterations > 0) {
+	max_iterations--;
+        // if (Util_Timestamp(&now, true)) {
+        //     size_t usec_elapsed = (((now.tv_sec - start.tv_sec) * 1000000) + (now.tv_usec - start.tv_usec));
+        //     size_t msec_elapsed = usec_elapsed / 1000;
 
-            rem_msec = timeout_msec - msec_elapsed;
-        } else {
-            /* If gettimeofday fails here, the listener's hold message has
-             * already been sent; it will time out later. We need to treat
-             * this like a TX failure (including closing the socket) because
-             * we don't know what state the connection was left in. */
-            BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128, "gettimeofday failure in poll loop: %d", errno);
-            Send_HandleFailure(b, box, BUS_SEND_TX_FAILURE);
-            return true;
-        }
+        //     rem_msec = timeout_msec - msec_elapsed;
+        // } else {
+        //      If gettimeofday fails here, the listener's hold message has
+        //      * already been sent; it will time out later. We need to treat
+        //      * this like a TX failure (including closing the socket) because
+        //      * we don't know what state the connection was left in. 
+        //     BUS_LOG_SNPRINTF(b, 0, LOG_SENDER, b->udata, 128, "gettimeofday failure in poll loop: %d", errno);
+        //     Send_HandleFailure(b, box, BUS_SEND_TX_FAILURE);
+        //     return true;
+        // }
 
         #ifdef TEST
         errno = poll_errno;
         #endif
 	
-        int res = syscall_poll(fds, 1, rem_msec); 
+        int res = syscall_poll(fds, 1, SEND_POLL_TIMEOUT); 
         BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "handle_write: poll res %d", res);
         if (res == -1) {
             if (errno == EINTR || errno == EAGAIN) { /* interrupted/try again */
@@ -162,7 +167,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
                 assert(false);  /* match fail */
             }
         } else if (res == 0) {  /* timeout */
- 	    BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "do_blocking_send on %d: no file descriptor!", box->fd);
+ 	        BUS_LOG_SNPRINTF(b, 3, LOG_SENDER, b->udata, 256, "do_blocking_send on %d: no file descriptor!", box->fd);
             break;
         }
     }
