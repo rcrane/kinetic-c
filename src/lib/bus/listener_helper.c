@@ -54,19 +54,18 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
             
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
 
-                if (ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE)){
-                        __sync_fetch_and_add(&l->msgs_in_use, 1);
-                        //BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
+                assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE));
+                __sync_fetch_and_add(&l->msgs_in_use, 1);
+                //BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
+                //BUS_ASSERT(b, b->udata, head->type == MSG_HEADINUSE);
 
-                        BUS_ASSERT(b, b->udata, head->type == MSG_HEADINUSE);
-                        memset(&head->u, 0, sizeof(head->u));
+                memset(&head->u, 0, sizeof(head->u));
 
-                        if(loopcounter > 200){
-                            fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg %d\n", loopcounter);
-                        }
-                        return head;
+                if(loopcounter > 200){
+                    fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg %d\n", loopcounter);
                 }
-
+                return head;
+                
                 //sched_yield();
                 
         }
@@ -94,19 +93,15 @@ bool ListenerHelper_PushMessage(struct listener *l, listener_msg *msg, int *repl
 rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
     struct bus *b = l->bus;
     struct rx_info_t *head = NULL;
-
+    int loopcounter = 0;
     for(;;){
 
+        loopcounter++;
         head = l->rx_info_freelist;
     
         if (head == NULL) {
             BUS_LOG(b, 6, LOG_SENDER, "No rx_info cells left!", b->udata);
             //fprintf(stderr, "No free messages!\n");
-            struct timespec ts = {
-                     .tv_sec = 0,
-                     .tv_nsec = 100L * l->rx_info_in_use,
-            };
-            //nanosleep(&ts, NULL);
             sched_yield();
 
         } else if(ATOMIC_BOOL_COMPARE_AND_SWAP(&l->rx_info_freelist, head, head->next)) {
@@ -114,7 +109,7 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
             if(head->state != RIS_INACTIVE){
                 fprintf(stderr, "HEAD->state: %d\n", head->state);
             }
-            BUS_ASSERT(b, b->udata, head->state == RIS_INACTIVE);
+            //BUS_ASSERT(b, b->udata, head->state == RIS_INACTIVE);
             assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->state), RIS_INACTIVE, RIS_HEADINUSE));
             head->next = NULL;
             __sync_fetch_and_add(&l->rx_info_in_use, 1);
@@ -134,9 +129,15 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
 
             BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 128, "got free rx_info_t %d (%p)", head->id, (void *)head);
             BUS_ASSERT(b, b->udata, head == &l->rx_info[head->id]);
-
+            if(loopcounter > 200){
+	         fprintf(stderr, "Contention in ListenerHelper_GetFreeRX %d\n", loopcounter);
+	    }
             return head;
         }
+	if(loopcounter > 15){
+	    sched_yield();
+	}
+
     }
 }
 
