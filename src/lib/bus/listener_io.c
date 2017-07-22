@@ -51,9 +51,7 @@ void ListenerIO_AttemptRecv(listener *l, int available) {
         connection_info *ci = l->fd_info[i];
         BUS_ASSERT(b, b->udata, ci->fd == fd->fd);
 
-        BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64,
-            "poll: l->fds[%d]->revents: 0x%04x",  // NOCOMMIT
-            i + INCOMING_MSG_PIPE, fd->revents);
+        BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64, "poll: l->fds[%d]->revents: 0x%04x", i + INCOMING_MSG_PIPE, fd->revents);
 
         /* If a socket is about to be shut down, we want to get a
          * complete read from it if possible, because it's likely to be
@@ -92,13 +90,11 @@ void ListenerIO_AttemptRecv(listener *l, int available) {
 
         if (fd->revents & (POLLERR | POLLNVAL)) {
             read_from++;
-            BUS_LOG(b, 2, LOG_LISTENER,
-                "pollfd: socket error (POLLERR | POLLNVAL)", b->udata);
+            fprintf(stderr, "pollfd: socket error (POLLERR | POLLNVAL)\n");
             set_error_for_socket(l, i, ci->fd, RX_ERROR_POLLERR);
         } else if (fd->revents & POLLHUP) {
             read_from++;
-            BUS_LOG(b, 3, LOG_LISTENER, "pollfd: socket error POLLHUP",
-                b->udata);
+            fprintf(stderr, "pollfd: socket error POLLHUP\n");
             set_error_for_socket(l, i, ci->fd, RX_ERROR_POLLHUP);
         }
     }
@@ -125,8 +121,7 @@ static ssize_t socket_read_plain(struct bus *b, listener *l, int pfd_i, connecti
                 errno = 0;
                 continue;
             } else {
-                BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-                    "read: socket error reading, %d", errno);
+                fprintf(stderr, "read: socket error reading, %d\n", errno);
                 set_error_for_socket(l, pfd_i, ci->fd, RX_ERROR_READ_FAILURE);
                 errno = 0;
                 return -1;
@@ -134,8 +129,7 @@ static ssize_t socket_read_plain(struct bus *b, listener *l, int pfd_i, connecti
         }
 
         if (size > 0) {
-            BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64,
-                "read: %zd", size);
+            BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "read: %zd", size);
             sink_socket_read(b, l, ci, size);
             accum += size;
         } else {
@@ -186,8 +180,7 @@ static ssize_t socket_read_ssl(struct bus *b, listener *l, int pfd_i, connection
                     errno = 0;
                     continue;
                 } else {
-                    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-                        "SSL_read fd %d: errno %d", ci->fd, errno);
+                    fprintf(stderr, "SSL_read fd %d: errno %d\n", ci->fd, errno);
                     print_SSL_error(b, ci, 1, "SSL_ERROR_SYSCALL");
                     set_error_for_socket(l, pfd_i, ci->fd, RX_ERROR_READ_FAILURE);
                     return -1;
@@ -196,8 +189,7 @@ static ssize_t socket_read_ssl(struct bus *b, listener *l, int pfd_i, connection
             }
             case SSL_ERROR_ZERO_RETURN:
             {
-                BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-                    "SSL_read fd %d: ZERO_RETURN (HUP)", ci->fd);
+                fprintf(stderr, "SSL_read fd %d: ZERO_RETURN (HUP)\n", ci->fd);
                 set_error_for_socket(l, pfd_i, ci->fd, RX_ERROR_POLLHUP);
                 return -1;
             }
@@ -265,8 +257,7 @@ static void set_error_for_socket(listener *l, int id, int fd, rx_error_t err) {
 
     /* Mark all pending messages on this socket as being failed due to error. */
     struct bus *b = l->bus;
-    BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-        "set_error_for_socket %d, err %d", fd, err);
+    fprintf(stderr, "set_error_for_socket %d, err %d\n", fd, err);
 
     for (int i = 0; i <= l->rx_info_max_used; i++) {
         rx_info_t *info = &l->rx_info[i];
