@@ -79,7 +79,7 @@ typedef struct listener_msg {
 
 /** How long the listener should wait for responses before becoming idle
  * and blocking. */
-#define LISTENER_TASK_TIMEOUT_DELAY 100
+#define LISTENER_TASK_TIMEOUT_DELAY 50
 
 typedef enum {
     RIS_HOLD = 1,
@@ -126,7 +126,7 @@ typedef struct rx_info_t {
 typedef uint32_t msg_flag_t;
 
 /** Special value meaning poll should block indefinitely. */
-#define INFINITE_DELAY 200
+#define INFINITE_DELAY 300
 
 /** Sentinel values used for listener.shutdown_notify_fd. */
 #define LISTENER_NO_FD (-1)
