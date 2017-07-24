@@ -145,7 +145,7 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
 rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l, int fd, int64_t seq_id, int wanted_state) {
     
     struct bus *b = l->bus;
-    for (int i = 0; i <= MAX_PENDING_MESSAGES; i++) { // the max used counter may not be trustworthy
+    for (int i = 0; i < MAX_PENDING_MESSAGES; i++) { // the max used counter may not be trustworthy
 
         rx_info_t *info = &l->rx_info[i];
 
