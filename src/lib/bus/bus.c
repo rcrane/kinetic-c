@@ -451,12 +451,12 @@ bool Bus_ReleaseSocket(struct bus *b, int fd, void **socket_udata_out) {
         return false;           /* couldn't send msg to listener */
     }
 
-//  Not polling for completion could lead to message loss if Bus_ReleaseSocket is called to early
-//    assert(completion_pipe != -1);
-//    bool completed = BusPoll_OnCompletion(b, completion_pipe);
-//    if (!completed) {           /* listener hung up while waiting */
-//        return false;
-//    }
+    //  Not polling for completion could lead to message loss if Bus_ReleaseSocket is called to early
+
+    bool completed = BusPoll_OnCompletion(b, completion_pipe);
+    if (!completed) {           /* listener hung up while waiting */
+        return false;
+    }
 
     /* Lock hash table and forget whether this FD uses SSL. */
     #ifndef TEST
