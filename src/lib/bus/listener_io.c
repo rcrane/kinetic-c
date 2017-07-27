@@ -51,6 +51,11 @@ void ListenerIO_AttemptRecv(listener *l, int available) {
         connection_info *ci = l->fd_info[i];
         BUS_ASSERT(b, b->udata, ci->fd == fd->fd);
 
+        if(ci == NULL){
+            continue;
+            // in case listener is still active when socket gets terminated. --> bad concurrency
+        }
+
         BUS_LOG_SNPRINTF(b, 1, LOG_LISTENER, b->udata, 64, "poll: l->fds[%d]->revents: 0x%04x", i + INCOMING_MSG_PIPE, fd->revents);
 
         /* If a socket is about to be shut down, we want to get a
