@@ -266,7 +266,6 @@ KineticStatus KineticAdminClient_SetACL(KineticSession * const session,
     // Initialize request
     KineticBuilder_BuildSetACL(operation, ACLs);
     KineticStatus status = KineticController_ExecuteOperation(operation, NULL);
-    KineticACL_Free(ACLs);
 
     return status;
 }
