@@ -147,9 +147,8 @@ static ssize_t socket_read_plain(struct bus *b, listener *l, int pfd_i, connecti
 static void print_SSL_error(struct bus *b, connection_info *ci, int lvl, const char *prefix) {
     unsigned long errval = ERR_get_error();
     char ebuf[256];
-    BUS_LOG_SNPRINTF(b, lvl, LOG_LISTENER, b->udata, 64,
-        "%s -- ERROR on fd %d -- %s",
-        prefix, ci->fd, ERR_error_string(errval, ebuf));
+    BUS_LOG_SNPRINTF(b, lvl, LOG_LISTENER, b->udata, 64, "%s -- ERROR on fd %d -- %s", prefix, ci->fd, ERR_error_string(errval, ebuf));
+    fprintf(stderr, "%s -- ERROR on fd %d -- %s\n", prefix, ci->fd, ERR_error_string(errval, ebuf))
     (void)ci;
     (void)lvl;
     (void)errval;
