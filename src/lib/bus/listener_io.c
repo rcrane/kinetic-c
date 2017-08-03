@@ -148,7 +148,7 @@ static void print_SSL_error(struct bus *b, connection_info *ci, int lvl, const c
     unsigned long errval = ERR_get_error();
     char ebuf[256];
     BUS_LOG_SNPRINTF(b, lvl, LOG_LISTENER, b->udata, 64, "%s -- ERROR on fd %d -- %s", prefix, ci->fd, ERR_error_string(errval, ebuf));
-    fprintf(stderr, "%s -- ERROR on fd %d -- %s\n", prefix, ci->fd, ERR_error_string(errval, ebuf))
+    fprintf(stderr, "%s -- ERROR on fd %d -- %s\n", prefix, ci->fd, ERR_error_string(errval, ebuf));
     (void)ci;
     (void)lvl;
     (void)errval;
