@@ -222,7 +222,7 @@ static bool sink_socket_read(struct bus *b,
         "read %zd bytes, calling sink CB", size);
 
     if(ci == NULL){
-	return false; // Bus_ReleaseSocket
+	   return false; // Bus_ReleaseSocket
     }
 
 #if DUMP_READ
@@ -244,6 +244,9 @@ static bool sink_socket_read(struct bus *b,
         process_unpacked_message(l, ci, ures);
     }
 
+    if(ci == NULL){
+       return false; // Bus_ReleaseSocket
+    }
     ci->to_read_size = sres.next_read;
 
     BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64, "expecting next read to have %zd bytes", ci->to_read_size);
