@@ -238,9 +238,7 @@ static bool sink_socket_read(struct bus *b,
     if (sres.full_msg_buffer) {
         BUS_LOG(b, 3, LOG_LISTENER, "calling unpack CB", b->udata);
         bus_unpack_cb_res_t ures = b->unpack_cb(sres.full_msg_buffer, ci->udata);
-        BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
-            "process_unpacked_message: ok? %d, seq_id:%lld",
-            ures.ok, (long long)ures.u.success.seq_id);
+        BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64, "process_unpacked_message: ok? %d, seq_id:%lld", ures.ok, (long long)ures.u.success.seq_id);
         process_unpacked_message(l, ci, ures);
     }
 

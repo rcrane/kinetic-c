@@ -482,6 +482,7 @@ bool Bus_ReleaseSocket(struct bus *b, int fd, void **socket_udata_out) {
         res = BusSSL_Disconnect(b, ci->ssl);
     }
 
+    sched_yield(); // safety
     free(ci);
     return res;
 }
