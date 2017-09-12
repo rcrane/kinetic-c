@@ -221,6 +221,10 @@ static bool sink_socket_read(struct bus *b,
     BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
         "read %zd bytes, calling sink CB", size);
 
+    if(ci == NULL){
+	return false; // Bus_ReleaseSocket
+    }
+
 #if DUMP_READ
     printf("\n");
     for (int i = 0; i < size; i++) {
