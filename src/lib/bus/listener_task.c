@@ -412,10 +412,16 @@ void ListenerTask_ReleaseRXInfo(struct listener *l, rx_info_t *info) {
             }
         }
         break;
-    case RIS_HEADINUSE:
-    	// see  ListenerTask_AttemptDelivery (line 462)
+        
     case RIS_EXPECT:
-    
+        if(info->u.expect.error == RX_ERROR_NONE && info->u.expect.box != NULL){
+            // Not sure, listenerTask thinks it is RIS_HOLD but when we get here it is EXPECT
+            // Concurrency bug: Multiple listenerTasks on the same msg.
+            // But this message back to prior state and hope for the best
+            __atomic_store(&(info->state), &oldstate, __ATOMIC_RELAXED); // pseudo lock
+            return;
+        }
+    case RIS_HEADINUSE: // see  ListenerTask_AttemptDelivery (line 613)
         BUS_ASSERT(b, b->udata, info->u.expect.error == RX_ERROR_DONE);
         BUS_ASSERT(b, b->udata, info->u.expect.box == NULL);
         break;
