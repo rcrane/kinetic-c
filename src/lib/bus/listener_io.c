@@ -160,12 +160,13 @@ static void print_SSL_error(struct bus *b, connection_info *ci, int lvl, const c
 static ssize_t socket_read_ssl(struct bus *b, listener *l, int pfd_i, connection_info *ci) {
     BUS_ASSERT(b, b->udata, ci->ssl);
     ssize_t accum = 0;
+    int reason = 0;
     while (ci->to_read_size > 0) {
         // ssize_t pending = SSL_pending(ci->ssl);
         ssize_t size = (ssize_t)syscall_SSL_read(ci->ssl, l->read_buf, ci->to_read_size);
 
         if (size == -1) {
-            int reason = syscall_SSL_get_error(ci->ssl, size);
+            reason = syscall_SSL_get_error(ci->ssl, size);
             switch (reason) {
             case SSL_ERROR_WANT_READ:
                 BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 64,
@@ -208,6 +209,12 @@ static ssize_t socket_read_ssl(struct bus *b, listener *l, int pfd_i, connection
             accum += size;
             if ((size_t)accum == ci->to_read_size) { break; }
         } else {
+            reason = syscall_SSL_get_error(ci->ssl, size);
+            if(SSL_ERROR_ZERO_RETURN == reason || reason == SSL_ERROR_SYSCALL){
+                fprintf(stderr, "SSL_read fd %d: shutdown or EOF\n", ci->fd);
+                set_error_for_socket(l, pfd_i, ci->fd, RX_ERROR_POLLHUP);
+                return -1;
+            }
             break;
         }
     }
