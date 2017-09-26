@@ -353,9 +353,9 @@ static void expect_response(listener *l, struct boxed_msg *box) {
             assert(info->u.expect.box);
             int s = RX_ERROR_NONE; __atomic_store(&(info->u.expect.error), &s, __ATOMIC_RELAXED);
             info->u.expect.has_result = false;
-            info->state = RIS_EXPECT;
             /* Switch over to client's transferred timeout */
             info->timeout_sec = box->timeout_sec;
+            info->state = RIS_EXPECT; // TODO use atomic store?
         }
     } else if (info && info->state == RIS_EXPECT) {
         /* Multiple identical EXPECTs should never happen, outside of
