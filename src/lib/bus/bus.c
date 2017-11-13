@@ -29,7 +29,9 @@
 #include "bus_poll.h"
 #include "send.h"
 #include "listener.h"
-#include "threadpool.h"
+#ifdef USETHREADPOOL
+ #include "threadpool.h"
+#endif
 #include "bus_internal_types.h"
 #include "bus_ssl.h"
 #include "util.h"
@@ -86,7 +88,9 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
 
     uint8_t locks_initialized = 0;
     struct listener **ls = NULL;     /* listeners */
+#ifdef USETHREADPOOL
     struct threadpool *tp = NULL;
+#endif
     bool *joined = NULL;
     pthread_t *threads = NULL;
     struct yacht *fds = NULL;
@@ -137,16 +141,16 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
             BUS_LOG_SNPRINTF(b, 3, LOG_INITIALIZATION, b->udata, 64, "Initialized listener %d at %p", i, (void*)ls[i]);
         }
     }
-
+#ifdef USETHREADPOOL
     tp = Threadpool_Init(&config->threadpool_cfg);
     // Allow not to have threadpool 
-    /*
+
     if (tp == NULL) {
         res->status = BUS_INIT_ERROR_THREADPOOL_INIT_FAIL;
     	fprintf(stderr,"Threadpool init failed\n");
         goto cleanup;
     }
-    */
+#endif
     int thread_count = config->listener_count;
     joined = calloc(thread_count, sizeof(bool));
     threads = calloc(thread_count, sizeof(pthread_t));
@@ -163,7 +167,9 @@ bool Bus_Init(bus_config *config, struct bus_result *res) {
 
     b->listener_count = config->listener_count;
     b->listeners = ls;
+#ifdef USETHREADPOOL
     b->threadpool = tp;
+#endif
     b->joined = joined;
     b->threads = threads;
 
@@ -188,7 +194,9 @@ cleanup:
         }
         free(ls);
     }
+#ifdef USETHREADPOOL
     if (tp) { Threadpool_Free(tp); }
+#endif
     if (joined) { free(joined); }
     if (b) {
         if (locks_initialized > 1) {
@@ -606,7 +614,7 @@ bool Bus_ProcessBoxedMessage(struct bus *b, struct boxed_msg *box, size_t *backp
     assert(box);
     assert(box->result.status != BUS_SEND_UNDEFINED);
 
-/*
+#ifdef USETHREADPOOL
     struct threadpool_task task = {
         .task = box_execute_cb,
         .cleanup = box_cleanup_cb,
@@ -615,8 +623,9 @@ bool Bus_ProcessBoxedMessage(struct bus *b, struct boxed_msg *box, size_t *backp
 
     BUS_LOG_SNPRINTF(b, 3, LOG_MEMORY, b->udata, 128, "Scheduling boxed message -- %p -- where it will be freed", (void*)box);
     return Threadpool_Schedule(b->threadpool, &task, backpressure);
-*/
+#else
     box_execute_cb(box);
+#endif
     return true;
 }
 
@@ -637,7 +646,7 @@ void Bus_Free(bus *b) {
         Listener_Free(b->listeners[i]);
     }
     free(b->listeners);
-
+#ifdef USETHREADPOOL
     int limit = (1000 * THREAD_SHUTDOWN_SECONDS)/10;
     for (int i = 0; i < limit; i++) {
         BUS_LOG_SNPRINTF(b, 3, LOG_SHUTDOWN, b->udata, 128,
@@ -653,6 +662,7 @@ void Bus_Free(bus *b) {
     }
     BUS_LOG(b, 3, LOG_SHUTDOWN, "Threadpool_Free", b->udata);
     Threadpool_Free(b->threadpool);
+#endif
     free(b->joined);
     free(b->threads);
     pthread_mutex_destroy(&b->fd_set_lock);

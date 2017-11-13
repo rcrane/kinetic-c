@@ -27,6 +27,7 @@
 #include "kinetic_response.h"
 #include "kinetic_bus.h"
 #include "kinetic_memory.h"
+#include "kinetic_types.h"
 #include <stdlib.h>
 #include <sys/time.h>
 
@@ -54,10 +55,11 @@ KineticClient * KineticClient_Init(KineticClientConfig *config)
     if (config->readerThreads == 0) {
         config->readerThreads = KINETIC_CLIENT_DEFAULT_READER_THREADS;
     }
+#ifdef USETHREADPOOL
     if (config->maxThreadpoolThreads == 0) {
         config->maxThreadpoolThreads = KINETIC_CLIENT_DEFAULT_MAX_THREADPOOL_THREADS;
     }
-
+#endif
     bool success = KineticBus_Init(client, config);
     if (!success) {
         KineticFree(client);

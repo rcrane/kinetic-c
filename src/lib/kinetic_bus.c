@@ -25,8 +25,10 @@
 #include "kinetic_nbo.h"
 #include "kinetic_allocator.h"
 #include "kinetic_controller.h"
-#include "bus.h"
 #include "kinetic_pdu_unpack.h"
+#include "kinetic_types.h"
+#include "bus_types.h"
+#include "bus.h"
 
 #include <time.h>
 
@@ -265,9 +267,11 @@ bool KineticBus_Init(KineticClient * client, KineticClientConfig * config)
         .unexpected_msg_cb = KineticController_HandleUnexpectedResponse,
         .bus_udata = NULL,
         .listener_count = config->readerThreads,
+#ifdef USETHREADPOOL
         .threadpool_cfg = {
             .max_threads = config->maxThreadpoolThreads,
         },
+#endif
     };
     bus_result res;
     memset(&res, 0, sizeof(res));

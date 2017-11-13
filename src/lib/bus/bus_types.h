@@ -20,9 +20,11 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
+#ifdef USETHREADPOOL
 #include "threadpool.h"
-
+#endif
 
 #define DISSABLE_BUS_LOG false
 
@@ -162,8 +164,9 @@ typedef void (bus_unexpected_msg_cb)(void *msg,
 typedef struct bus_config {
     /* If omitted, these fields will be set to defaults. */
     int listener_count;
+#ifdef USETHREADPOOL
     struct threadpool_config threadpool_cfg;
-
+#endif
     /* Callbacks */
     bus_sink_cb *sink_cb;       /* required */
     bus_unpack_cb *unpack_cb;   /* required */
