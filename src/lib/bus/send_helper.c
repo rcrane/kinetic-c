@@ -22,7 +22,6 @@
 #include "send.h"
 #include "syscall.h"
 #include "util.h"
-
 #include <assert.h>
 #include <unistd.h>
 
@@ -251,7 +250,7 @@ static bool enqueue_EXPECT_message_to_listener(bus *b, boxed_msg *box) {
         } else {
             BUS_LOG_SNPRINTF(b, 5, LOG_SENDER, b->udata, 64,"enqueue_request_sent: failed delivery %d", retries);
             if(retries >= SEND_NOTIFY_LISTENER_RETRIES/2){
-                usleep(10); // use sleep instead of poll
+                sched_yield();
             }
         }
     }
