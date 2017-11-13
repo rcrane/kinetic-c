@@ -115,7 +115,7 @@ typedef struct rx_info_t {
 
 /** Max number of sockets to monitor.
  * If listening to more sockets than this, use multiple listener threads. */
-#define MAX_FDS 1000
+#define MAX_FDS 100
 
 /* Max number of partially processed messages.
  * TODO: Capacity planning. */
