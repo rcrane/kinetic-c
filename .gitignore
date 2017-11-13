@@ -42,3 +42,8 @@ src/lib/kinetic_version_info.h
 *.sublime-workspace
 .DS_Store
 .rake_t_cache
+GPATH
+GRTAGS
+GSYMS
+GTAGS
+
