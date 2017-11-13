@@ -145,9 +145,14 @@ rx_info_t *ListenerHelper_GetFreeRXInfo(struct listener *l) {
 rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l, int fd, int64_t seq_id, int wanted_state) {
     
     struct bus *b = l->bus;
+    bool seq_found = false;
     for (int i = 0; i < MAX_PENDING_MESSAGES; i++) { // the max used counter may not be trustworthy
 
         rx_info_t *info = &l->rx_info[i];
+
+        if(info->u.hold.seq_id == seq_id){
+            seq_found = true;
+        }
 
         if( ( (wanted_state > -1) && (info->state == wanted_state) ) || (wanted_state == -1) ){ // increase efficiency
 
@@ -198,5 +203,8 @@ rx_info_t *ListenerHelper_FindInfoBySequenceID(listener *l, int fd, int64_t seq_
     }
 
     /* Not found. Probably an unsolicited status message. */
+    if(seq_found){
+        fprintf(stderr, "sequence number found but no match %s", __FILE__);
+    }
     return NULL;
 }

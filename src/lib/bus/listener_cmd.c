@@ -365,7 +365,7 @@ static void expect_response(listener *l, struct boxed_msg *box) {
         // ROB: RIS_HEADINUSE is a transisiton state -> info is not yet completely enqueued 
     }else {
         /* should never happen; just drop the message */
-        BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256, "Couldn't find info for box %p", (void *)box);
+        //BUS_LOG_SNPRINTF(b, 3, LOG_LISTENER, b->udata, 256, "Couldn't find info for box %p", (void *)box);
         fprintf(stderr, "Couldn't find info for box %p\n", (void *)box);
     }
 }
