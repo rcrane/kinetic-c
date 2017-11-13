@@ -1,3 +1,6 @@
+#include <kinetic_types.h>
+#include "kinetic_engine.h"
+
 /**
  * Copyright 2013-2015 Seagate Technology LLC.
  *
