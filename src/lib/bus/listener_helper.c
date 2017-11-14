@@ -54,20 +54,19 @@ listener_msg *ListenerHelper_GetFreeMsg(listener *l) {
             
         } else if (ATOMIC_BOOL_COMPARE_AND_SWAP(&l->msg_freelist, head, head->next)) {
 
-                assert(ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE));
-                __sync_fetch_and_add(&l->msgs_in_use, 1);
-                //BUS_LOG_SNPRINTF(b, 5, LOG_LISTENER, b->udata, 64, "got free msg: %u", head->id);
-                //BUS_ASSERT(b, b->udata, head->type == MSG_HEADINUSE);
+            while(false == ATOMIC_BOOL_COMPARE_AND_SWAP(&(head->type), MSG_NONE, MSG_HEADINUSE)){
+                sched_yield();
+            }
 
-                memset(&head->u, 0, sizeof(head->u));
+            __sync_fetch_and_add(&l->msgs_in_use, 1);
 
-                if(loopcounter > 200){
-                    fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg %d\n", loopcounter);
-                }
-                return head;
-                
-                //sched_yield();
-                
+            memset(&head->u, 0, sizeof(head->u));
+
+            if(loopcounter > 200){
+                fprintf(stderr, "Contention in ListenerHelper_GetFreeMsg %d\n", loopcounter);
+            }
+            return head;
+
         }
         if(loopcounter > 15){
             sched_yield();
