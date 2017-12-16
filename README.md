@@ -54,7 +54,7 @@ Getting Started
 
 **Clone the repo**
 
-    > git clone --recursive https://github.com/Kinetic/kinetic-c.git
+    > git clone --recursive https://github.com/rcrane/kinetic-c.git
     > cd kinetic-c
 
 **Update to the latest version (previously cloned)**
