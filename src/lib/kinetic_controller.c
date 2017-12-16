@@ -27,6 +27,7 @@
 #include "kinetic_logger.h"
 #include <pthread.h>
 #include <time.h>
+#include <errno.h>
 #include "bus.h"
 
 typedef struct {
@@ -94,7 +95,7 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
             }
             status = data.status;
 	    if (n == ETIMEDOUT){
-                status = KINETIC_OPERATION_TIMEDOUT;
+                status = KINETIC_STATUS_OPERATION_TIMEDOUT;
 	    }
             pthread_mutex_unlock(&data.receiveCompleteMutex);
         }
