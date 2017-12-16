@@ -91,10 +91,11 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
             while(data.completed == false && n == 0) {
             //while(data.completed == false) {
                 n = pthread_cond_timedwait(&data.receiveComplete, &data.receiveCompleteMutex, &ts);
-                //pthread_cond_wait(&data.receiveComplete, &data.receiveCompleteMutex);
             }
-            // TODO set status to error on timeout
             status = data.status;
+	    if (n == ETIMEDOUT){
+                status = KINETIC_OPERATION_TIMEDOUT;
+	    }
             pthread_mutex_unlock(&data.receiveCompleteMutex);
         }
 
