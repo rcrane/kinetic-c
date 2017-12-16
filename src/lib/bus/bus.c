@@ -633,7 +633,6 @@ bool Bus_ProcessBoxedMessage(struct bus *b, struct boxed_msg *box, size_t *backp
 #define THREAD_SHUTDOWN_SECONDS 5
 
 void Bus_Free(bus *b) {
-    fprintf(stderr, "Bus_Free: %p\n", b);
     if (b == NULL) { return; }
     while (b->shutdown_state != SHUTDOWN_STATE_HALTED) {
         if (Bus_Shutdown(b)) { break; }
