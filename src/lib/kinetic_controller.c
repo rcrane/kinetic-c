@@ -84,7 +84,7 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
 
         struct timespec ts={0,0};
         clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += 5;
+        ts.tv_sec += 90; // clearing the disk can take forever
         int n = 0;
         if (status == KINETIC_STATUS_SUCCESS) {
 
@@ -95,7 +95,7 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
             }
             status = data.status;
 	    if (n == ETIMEDOUT){
-                status = KINETIC_STATUS_OPERATION_TIMEDOUT;
+            status = KINETIC_STATUS_OPERATION_TIMEDOUT;
 	    }
             pthread_mutex_unlock(&data.receiveCompleteMutex);
         }
