@@ -88,12 +88,15 @@ static bool init_client_SSL_CTX(SSL_CTX **ctx_out) {
 
     /* Create TLS context */
     const SSL_METHOD *method = NULL;
-
-    #if KINETIC_USE_TLS_1_2
+    
+    #ifdef KINETIC_USE_TLS_1_2
         method = TLSv1_2_client_method();
-    #else
+    #elif KINETIC_USE_TLS_1_1
         method = TLSv1_1_client_method();
+    #else
+        method = TLS_client_method(); // OpenSSL 1.1.0
     #endif
+
 
     assert(method);
     ctx = SSL_CTX_new(method);

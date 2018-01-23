@@ -22,9 +22,9 @@
 #include "bus_internal_types.h"
 
 /* Default to TLS 1.1 for now, since it's what the drives support. */
-#ifndef KINETIC_USE_TLS_1_2
-#define KINETIC_USE_TLS_1_2 0
-#endif
+//#ifndef KINETIC_USE_TLS_1_2
+//#define KINETIC_USE_TLS_1_2 0
+//#endif
 
 /** Initialize the SSL library internals for use by the messaging bus. */
 bool BusSSL_Init(struct bus *b);

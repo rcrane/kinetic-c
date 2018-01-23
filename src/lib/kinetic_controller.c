@@ -27,6 +27,7 @@
 #include "kinetic_logger.h"
 #include <pthread.h>
 #include <time.h>
+#include <errno.h>
 #include "bus.h"
 
 typedef struct {
@@ -83,7 +84,7 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
 
         struct timespec ts={0,0};
         clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += 5;
+        ts.tv_sec += 90; // clearing the disk can take forever
         int n = 0;
         if (status == KINETIC_STATUS_SUCCESS) {
 
@@ -91,10 +92,11 @@ KineticStatus KineticController_ExecuteOperation(KineticOperation* operation, Ki
             while(data.completed == false && n == 0) {
             //while(data.completed == false) {
                 n = pthread_cond_timedwait(&data.receiveComplete, &data.receiveCompleteMutex, &ts);
-                //pthread_cond_wait(&data.receiveComplete, &data.receiveCompleteMutex);
             }
-            // TODO set status to error on timeout
             status = data.status;
+	    if (n == ETIMEDOUT){
+            status = KINETIC_STATUS_OPERATION_TIMEDOUT;
+	    }
             pthread_mutex_unlock(&data.receiveCompleteMutex);
         }
 
