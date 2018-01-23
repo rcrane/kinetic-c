@@ -36,7 +36,11 @@ const KineticVersionInfo * KineticClient_Version(void);
  * @return          Returns a pointer to the SSL object of the session's connection
  *
  */
-SSL* KineticClient_GetSSL(KineticSession * const session);
+SSL* KineticClient_GetSSL(KineticSession* session);
+
+int KineticClient_GetPort(KineticSession* session);
+char* KineticClient_GetHost(KineticSession* session);
+int64_t KineticClient_GetConnectionID(KineticSession const * session);
 
 /**
  * Initializes the Kinetic API and configures logging.

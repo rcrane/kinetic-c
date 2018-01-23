@@ -155,6 +155,15 @@ SSL* KineticSession_GetSSL(KineticSession * const session)
     return p;
 }
 
+int KineticSession_GetPort(KineticSession * const session){
+    return session->config.port;
+}
+
+char* KineticSession_GetHost(KineticSession * const session){
+    return session->config.host;
+}
+
+
 KineticStatus KineticSession_Disconnect(KineticSession * const session)
 {
     if (session == NULL) {

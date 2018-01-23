@@ -339,3 +339,15 @@ KineticStatus KineticClient_P2POperation(KineticSession* const session,
     // Execute the operation
     return KineticController_ExecuteOperation(operation, closure);
 }
+
+int KineticClient_GetPort(KineticSession * const session){
+    return KineticSession_GetPort(session);
+}
+
+char* KineticClient_GetHost(KineticSession * const session){
+    return KineticSession_GetHost(session);
+}
+
+int64_t KineticClient_GetConnectionID(KineticSession const * const session){
+    return KineticSession_GetConnectionID(session);
+}

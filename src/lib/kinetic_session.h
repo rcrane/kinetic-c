@@ -41,6 +41,9 @@ void KineticSession_SetConnectionID(KineticSession * const session, int64_t id);
  * @return          Returns a pointer to the SSL object of the session's connection
  *
  */
- SSL* KineticSession_GetSSL(KineticSession * const session);
+SSL* KineticSession_GetSSL(KineticSession * const session);
+
+int KineticSession_GetPort(KineticSession * const session);
+char* KineticSession_GetHost(KineticSession * const session);
 
 #endif // _KINETIC_SESSION_H
