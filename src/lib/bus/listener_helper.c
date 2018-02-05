@@ -18,9 +18,9 @@
 #include "listener_helper.h"
 #include "listener_task.h"
 #include "listener_cmd.h"
-#include "syscall.h"
-#include "atomic.h"
-
+#include <syscall.h>
+#include <atomic.h>
+#include <string.h>
 #include <time.h>
 #include <assert.h>
 
