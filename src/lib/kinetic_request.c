@@ -148,11 +148,20 @@ bool KineticRequest_SendRequest(KineticOperation *operation,
 bool KineticRequest_LockSend(KineticSession* session)
 {
     KINETIC_ASSERT(session);
-    return 0 == pthread_mutex_lock(&session->sendMutex);
+
+    while (__sync_bool_compare_and_swap(&session->sendMutex, false, true) == false) {
+        // yield to another application thread
+        sched_yield();
+    }
+    return 0;
 }
 
 bool KineticRequest_UnlockSend(KineticSession* session)
 {
     KINETIC_ASSERT(session);
-    return 0 == pthread_mutex_unlock(&session->sendMutex);
+    bool success = __sync_bool_compare_and_swap(&session->sendMutex, true, false);
+    // make sure the lock was actually set
+    KINETIC_ASSERT(success);
+    return 0;
 }
+

@@ -48,10 +48,11 @@ KineticStatus KineticSession_Create(KineticSession * const session, KineticClien
     session->socket = KINETIC_SOCKET_INVALID;
 
     // initialize session send mutex
-    if (pthread_mutex_init(&session->sendMutex, NULL) != 0) {
-        LOG0("Failed initializing session send mutex!");
-        return KINETIC_STATUS_MEMORY_ERROR;
-    }
+    session->sendMutex = false;
+//    if (pthread_mutex_init(&session->sendMutex, NULL) != 0) {
+//        LOG0("Failed initializing session send mutex!");
+//        return KINETIC_STATUS_MEMORY_ERROR;
+//    }
 
     session->outstandingOperations =
         KineticCountingSemaphore_Create(KINETIC_MAX_OUTSTANDING_OPERATIONS_PER_SESSION);
@@ -180,7 +181,8 @@ KineticStatus KineticSession_Disconnect(KineticSession * const session)
     session->si = NULL;
     session->socket = KINETIC_SOCKET_INVALID;
     session->connected = false;
-    pthread_mutex_destroy(&session->sendMutex);
+    //pthread_mutex_destroy(&session->sendMutex);
+    session->sendMutex = false;
 
     return KINETIC_STATUS_SUCCESS;
 }

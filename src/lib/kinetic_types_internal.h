@@ -91,7 +91,7 @@ struct _KineticSession {
     int64_t         sequence;                           ///< increments for each request in a session
     struct bus *    messageBus;                         ///< pointer to message bus instance
     socket_info *   si;                                 ///< pointer to socket information
-    pthread_mutex_t sendMutex;                          ///< mutex for locking around seq count acquisision, PDU packing, and transfer to threadpool
+    bool sendMutex;                          ///< mutex for locking around seq count acquisision, PDU packing, and transfer to threadpool
     KineticResourceWaiter connectionReady;              ///< connection ready status (set to true once connectionID recieved)
     KineticCountingSemaphore * outstandingOperations;   ///< counting semaphore to only allows the configured number of outstanding operation at a given time
     uint16_t timeoutSeconds;                            ///< Default response timeout
