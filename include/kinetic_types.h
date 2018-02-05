@@ -506,7 +506,7 @@ typedef enum _KineticCommand_Priority{
 /**
  * @brief Internal library operations limit; exposed so clients can throttle themselves before blocking
  */
-#define KINETIC_MAX_OUTSTANDING_OPERATIONS_PER_SESSION 2048
+#define KINETIC_MAX_OUTSTANDING_OPERATIONS_PER_SESSION 1024 // default 2048
 
 /**
  * @brief Configuration values for the KineticClient connection.
