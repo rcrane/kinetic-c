@@ -153,7 +153,7 @@ bool KineticRequest_LockSend(KineticSession* session)
         // yield to another application thread
         sched_yield();
     }
-    return 0;
+    return 1;
 }
 
 bool KineticRequest_UnlockSend(KineticSession* session)
@@ -162,6 +162,6 @@ bool KineticRequest_UnlockSend(KineticSession* session)
     bool success = __sync_bool_compare_and_swap(&session->sendMutex, true, false);
     // make sure the lock was actually set
     KINETIC_ASSERT(success);
-    return 0;
+    return 1;
 }
 
