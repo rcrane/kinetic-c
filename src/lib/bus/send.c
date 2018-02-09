@@ -68,8 +68,8 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
         box->out_msg_size, (void *)box->out_msg);
 */
     //int timeout_msec = box->timeout_sec * 1000;
-    int timeout_sec = box->timeout_sec;
-    int max_iterations = 1000*timeout_sec/SEND_POLL_TIMEOUT ;
+    time_t timeout_sec = box->timeout_sec;
+    time_t max_iterations = 1000*timeout_sec/SEND_POLL_TIMEOUT ;
 #ifndef TEST
    // struct timeval start;
    // struct timeval now;
@@ -99,7 +99,7 @@ bool Send_DoBlockingSend(bus *b, boxed_msg *box) {
      * EXPECT hasn't, leading to ambiguity about what to do with
      * the response (which may or may not have arrived).
      * */
-    if (!attempt_to_enqueue_HOLD_message_to_listener(b, box->fd, box->out_seq_id, box->timeout_sec + 5)) {
+    if (!attempt_to_enqueue_HOLD_message_to_listener(b, box->fd, box->out_seq_id, (int16_t) (box->timeout_sec + 5))) {
         fprintf(stderr,"attempt_to_enqueue_HOLD_message_to_listener failed\n");
         return false;
     }
