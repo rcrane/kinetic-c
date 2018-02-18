@@ -436,7 +436,7 @@ void KineticACL_Free(struct ACL *ACLs) {
         if(ACLs->ACLs) {
             for (size_t ai = 0; ai < ACLs->ACL_count; ai++) {
                 Com__Seagate__Kinetic__Proto__Command__Security__ACL *acl = ACLs->ACLs[ai];
-                if (acl && acl->n_scope) {
+                if (acl && (acl->n_scope > 0)) {
                     for (size_t si = 0; si < acl->n_scope; si++) {
                         Com__Seagate__Kinetic__Proto__Command__Security__ACL__Scope *scope = acl->scope[si];
                         if (scope->has_value && scope->value.data) {
@@ -450,7 +450,7 @@ void KineticACL_Free(struct ACL *ACLs) {
                     }
                     free(acl->scope);
                 }
-                if (acl && acl->has_key && acl->key.data) {
+                if (acl && (acl->has_key != 0) && acl->key.data) {
                         free(acl->key.data);
                 }
                 if (acl) {
