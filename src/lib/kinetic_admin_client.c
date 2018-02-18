@@ -266,7 +266,7 @@ KineticStatus KineticAdminClient_SetACL(KineticSession * const session,
     // Initialize request
     KineticBuilder_BuildSetACL(operation, ACLs);
     KineticStatus status = KineticController_ExecuteOperation(operation, NULL);
-    KineticACL_Free(ACLs); // get's called by kinetic_controller.c:290 when receiving box but still leaks mem? (false positive)
+    // address sanitizer complains that ACL has not been freed properly
     return status;
 }
 
