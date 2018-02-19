@@ -487,11 +487,14 @@ bool Bus_ReleaseSocket(struct bus *b, int fd, void **socket_udata_out) {
     if (ci->ssl == BUS_NO_SSL) {
         res = true;            /* nothing else to do */
     } else {
-        res = BusSSL_Disconnect(b, ci->ssl);
+        // TODO: uncommented for debugging reasons
+        res = true;
+        //res = BusSSL_Disconnect(b, ci->ssl);
     }
 
     sched_yield(); // safety
-    free(ci);
+    // TODO: uncommented for debugging reasons
+    //free(ci);
     return res;
 }
 
